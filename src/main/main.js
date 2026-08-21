@@ -18,6 +18,7 @@ class SadeemApplication {
         this.isQuitting = false;
         this.licenseStatus = null;
         this.readOnlyMode = false;
+        this.splashComplete = false;
     }
 
     // ========================================
@@ -162,23 +163,14 @@ class SadeemApplication {
      */
     encryptLicenseData(data, hwid) {
         try {
-            // 1. تحويل البيانات إلى JSON
             const jsonData = JSON.stringify(data);
             const dataBuffer = Buffer.from(jsonData, 'utf8');
             
-            // 2. توليد ملح عشوائي
             const salt = crypto.randomBytes(32);
-            
-            // 3. اشتقاق مفتاح من HWID
             const derivedKey = this.deriveKeyFromHWID(hwid, salt);
-            
-            // 4. تطبيق مصفوفة الخلط
             const scrambled = this.applyScramblingMatrix(dataBuffer, hwid);
-            
-            // 5. تطبيق XOR Shift
             const encrypted = this.applyXORShift(scrambled, derivedKey);
             
-            // 6. تجميع النتيجة النهائية
             const result = Buffer.concat([
                 salt,
                 encrypted
@@ -196,23 +188,14 @@ class SadeemApplication {
      */
     decryptLicenseData(encryptedData, hwid) {
         try {
-            // 1. فك الترميز base64
             const encryptedBuffer = Buffer.from(encryptedData, 'base64');
-            
-            // 2. استخراج الملح
             const salt = encryptedBuffer.slice(0, 32);
             const data = encryptedBuffer.slice(32);
             
-            // 3. اشتقاق المفتاح
             const derivedKey = this.deriveKeyFromHWID(hwid, salt);
-            
-            // 4. عكس XOR Shift
             const unscrambled = this.reverseXORShift(data, derivedKey);
-            
-            // 5. عكس مصفوفة الخلط
             const decrypted = this.reverseScramblingMatrix(unscrambled, hwid);
             
-            // 6. تحويل النتيجة إلى نص
             const jsonString = decrypted.toString('utf8');
             return JSON.parse(jsonString);
         } catch (error) {
@@ -502,13 +485,42 @@ class SadeemApplication {
     // إعدادات معالجات IPC
     // ========================================
     setupIPCHandlers() {
-        // التحكم في النافذة
-        ipcMain.handle('window:minimize', () => this.handleMinimize());
-        ipcMain.handle('window:maximize', () => this.handleMaximize());
-        ipcMain.handle('window:close', () => this.handleClose());
-        ipcMain.handle('window:isMaximized', () => this.mainWindow?.isMaximized() || false);
+        // ========================================
+        // التحكم في النافذة - استخدام النافذة النشطة
+        // ========================================
+        ipcMain.handle('window:minimize', () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            if (focusedWindow && !focusedWindow.isDestroyed()) {
+                focusedWindow.minimize();
+            }
+        });
 
+        ipcMain.handle('window:maximize', () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            if (focusedWindow && !focusedWindow.isDestroyed()) {
+                if (focusedWindow.isMaximized()) {
+                    focusedWindow.unmaximize();
+                } else {
+                    focusedWindow.maximize();
+                }
+            }
+        });
+
+        ipcMain.handle('window:close', () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            if (focusedWindow && !focusedWindow.isDestroyed()) {
+                focusedWindow.close();
+            }
+        });
+
+        ipcMain.handle('window:isMaximized', () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            return focusedWindow?.isMaximized() || false;
+        });
+
+        // ========================================
         // نظام التفعيل المتقدم
+        // ========================================
         ipcMain.handle('license:validate', async () => {
             return await this.licenseService.validateLicense();
         });
@@ -534,7 +546,9 @@ class SadeemApplication {
             return await this.licenseService.getTrialInformation();
         });
 
+        // ========================================
         // عمليات التشفير المتقدمة
+        // ========================================
         ipcMain.handle('encrypt:license', async (event, data, hwid) => {
             return this.encryptLicenseData(data, hwid);
         });
@@ -555,7 +569,9 @@ class SadeemApplication {
             return this.deriveKeyFromHWID(hwid, salt, iterations || 100000);
         });
 
+        // ========================================
         // عمليات قاعدة البيانات
+        // ========================================
         ipcMain.handle('db:query', async (event, sql, params) => {
             if (this.readOnlyMode && sql.toUpperCase().includes('INSERT')) {
                 throw new Error('وضع القراءة فقط - لا يمكن إضافة بيانات');
@@ -583,7 +599,9 @@ class SadeemApplication {
             return await this.databaseService.transaction(operations);
         });
 
+        // ========================================
         // عمليات النسخ الاحتياطي
+        // ========================================
         ipcMain.handle('backup:create', async () => {
             return await this.databaseService.createBackup();
         });
@@ -595,7 +613,9 @@ class SadeemApplication {
             return await this.databaseService.restoreBackup(backupPath);
         });
 
+        // ========================================
         // معلومات النظام
+        // ========================================
         ipcMain.handle('system:getInfo', async () => {
             return {
                 version: app.getVersion(),
@@ -616,7 +636,9 @@ class SadeemApplication {
             return this.readOnlyMode;
         });
 
+        // ========================================
         // تصدير التقارير
+        // ========================================
         ipcMain.handle('export:pdf', async (event, data, options) => {
             return await this.exportPDF(data, options);
         });
@@ -625,10 +647,21 @@ class SadeemApplication {
             return await this.exportExcel(data, options);
         });
 
+        // ========================================
         // معالجة الأخطاء
+        // ========================================
         ipcMain.handle('error:log', async (event, error) => {
             console.error('خطأ من عملية التصيير:', error);
             await this.logError(error);
+        });
+
+        // ========================================
+        // اكتمال شاشة البداية - إنشاء النافذة الرئيسية
+        // ========================================
+        ipcMain.handle('splash:complete', async () => {
+            console.log('✅ تم استلام إشارة اكتمال شاشة البداية');
+            this.splashComplete = true;
+            await this.createMainWindow();
         });
     }
 
@@ -677,75 +710,109 @@ class SadeemApplication {
         this.splashScreen.webContents.on('did-finish-load', () => {
             this.splashScreen.webContents.send('license-status', this.licenseStatus);
         });
-
-        // الاستماع لإكمال التحميل من شاشة البداية
-        ipcMain.once('splash:complete', () => {
-            this.createMainWindow();
-        });
     }
 
     // ========================================
     // إنشاء النافذة الرئيسية
     // ========================================
     async createMainWindow() {
-        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-            this.mainWindow.show();
-            return;
-        }
-
-        const isReadOnly = this.readOnlyMode;
-
-        this.mainWindow = new BrowserWindow({
-            width: 1400,
-            height: 900,
-            minWidth: 1200,
-            minHeight: 700,
-            frame: false,
-            transparent: true,
-            backgroundColor: '#0A0A0A',
-            show: false,
-            webPreferences: {
-                nodeIntegration: false,
-                contextIsolation: true,
-                preload: path.join(__dirname, 'preload.js'),
-                sandbox: true,
-                webSecurity: true,
-                allowRunningInsecureContent: false
-            },
-            icon: path.join(__dirname, '../assets/logo.png')
-        });
-
-        this.setupApplicationMenu(isReadOnly);
-
-        await this.mainWindow.loadFile(
-            path.join(__dirname, '../renderer/pages/dashboard/dashboard.html')
-        );
-
-        this.mainWindow.on('ready-to-show', () => {
-            this.mainWindow.show();
-            if (this.splashScreen && !this.splashScreen.isDestroyed()) {
-                this.splashScreen.close();
+        try {
+            // إذا كانت النافذة الرئيسية موجودة بالفعل، أظهرها
+            if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+                console.log('🔄 النافذة الرئيسية موجودة بالفعل، إظهارها');
+                this.mainWindow.show();
+                this.mainWindow.focus();
+                return;
             }
-        });
 
-        this.mainWindow.on('closed', () => {
-            this.mainWindow = null;
-        });
+            // التحقق من اكتمال شاشة البداية
+            if (!this.splashComplete) {
+                console.log('⏳ انتظار اكتمال شاشة البداية...');
+                // انتظار حتى تكتمل شاشة البداية
+                await new Promise((resolve) => {
+                    const checkComplete = setInterval(() => {
+                        if (this.splashComplete) {
+                            clearInterval(checkComplete);
+                            resolve();
+                        }
+                    }, 100);
+                });
+            }
 
-        this.mainWindow.webContents.setWindowOpenHandler((details) => {
-            shell.openExternal(details.url);
-            return { action: 'deny' };
-        });
+            console.log('🖥️ إنشاء النافذة الرئيسية...');
 
-        if (process.platform === 'win32') {
-            this.mainWindow.setContentProtection(true);
+            const isReadOnly = this.readOnlyMode;
+
+            this.mainWindow = new BrowserWindow({
+                width: 1400,
+                height: 900,
+                minWidth: 1200,
+                minHeight: 700,
+                frame: false,
+                transparent: true,
+                backgroundColor: '#0A0A0A',
+                show: false,
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true,
+                    preload: path.join(__dirname, 'preload.js'),
+                    sandbox: true,
+                    webSecurity: true,
+                    allowRunningInsecureContent: false
+                },
+                icon: path.join(__dirname, '../assets/logo.png')
+            });
+
+            // إعداد قائمة التطبيق
+            this.setupApplicationMenu(isReadOnly);
+
+            // تحميل لوحة التحكم
+            await this.mainWindow.loadFile(
+                path.join(__dirname, '../renderer/pages/dashboard/dashboard.html')
+            );
+
+            // عند جاهزية النافذة الرئيسية
+            this.mainWindow.on('ready-to-show', () => {
+                console.log('✅ النافذة الرئيسية جاهزة للعرض');
+                
+                // تكبير النافذة
+                this.mainWindow.maximize();
+                this.mainWindow.show();
+                this.mainWindow.focus();
+
+                // إغلاق شاشة البداية
+                if (this.splashScreen && !this.splashScreen.isDestroyed()) {
+                    console.log('🗑️ إغلاق شاشة البداية');
+                    this.splashScreen.close();
+                    this.splashScreen = null;
+                }
+            });
+
+            this.mainWindow.on('closed', () => {
+                this.mainWindow = null;
+            });
+
+            this.mainWindow.webContents.setWindowOpenHandler((details) => {
+                shell.openExternal(details.url);
+                return { action: 'deny' };
+            });
+
+            if (process.platform === 'win32') {
+                this.mainWindow.setContentProtection(true);
+            }
+
+            if (isReadOnly) {
+                this.mainWindow.webContents.send('app:readonly-mode', true);
+            }
+
+            this.mainWindow.webContents.send('app:license-status', this.licenseStatus);
+
+            console.log('✅ تم إنشاء النافذة الرئيسية بنجاح');
+
+        } catch (error) {
+            console.error('❌ فشل إنشاء النافذة الرئيسية:', error);
+            throw error;
         }
-
-        if (isReadOnly) {
-            this.mainWindow.webContents.send('app:readonly-mode', true);
-        }
-
-        this.mainWindow.webContents.send('app:license-status', this.licenseStatus);
     }
 
     // ========================================
@@ -801,24 +868,27 @@ class SadeemApplication {
     // معالجات التحكم في النافذة
     // ========================================
     handleMinimize() {
-        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-            this.mainWindow.minimize();
+        const focusedWindow = BrowserWindow.getFocusedWindow();
+        if (focusedWindow && !focusedWindow.isDestroyed()) {
+            focusedWindow.minimize();
         }
     }
 
     handleMaximize() {
-        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-            if (this.mainWindow.isMaximized()) {
-                this.mainWindow.unmaximize();
+        const focusedWindow = BrowserWindow.getFocusedWindow();
+        if (focusedWindow && !focusedWindow.isDestroyed()) {
+            if (focusedWindow.isMaximized()) {
+                focusedWindow.unmaximize();
             } else {
-                this.mainWindow.maximize();
+                focusedWindow.maximize();
             }
         }
     }
 
     handleClose() {
-        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-            this.mainWindow.close();
+        const focusedWindow = BrowserWindow.getFocusedWindow();
+        if (focusedWindow && !focusedWindow.isDestroyed()) {
+            focusedWindow.close();
         }
     }
 
