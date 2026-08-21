@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المصروفات - سديم</title>
+    <link rel="stylesheet" href="../../styles/global.css">
+    <style>
+        /* ========================================
+           أنميشن المصروفات
+           ======================================== */
+        @keyframes rippleEffect {
+            0% {
+                box-shadow: 0 0 0 0 rgba(43, 45, 66, 0.3);
+            }
+            100% {
+                box-shadow: 0 0 0 20px rgba(43, 45, 66, 0);
+            }
+        }
+
+        @keyframes floatStats {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        .expenses-container {
+            padding: 80px 30px 30px 30px;
+            height: 100vh;
+            overflow-y: auto;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .expenses-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+            animation: slideInDown 0.5s ease;
+        }
+
+        .expenses-title {
+            font-size: 28px;
+            font-weight: 300;
+            color: #F5F5F5;
+        }
+
+        .expenses-title span {
+            color: #C8D5E0;
+            background: linear-gradient(90deg, #C8D5E0, #E8EDF2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .expenses-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+            animation: slideUpCards 0.6s ease;
+        }
+
+        .stat-box {
+            background: rgba(28, 28, 30, 0.8);
+            border: 1px solid rgba(200, 213, 224, 0.08);
+            border-radius: 10px;
+            padding: 15px 20px;
+            transition: all 0.3s ease;
+            animation: floatStats 3s ease-in-out infinite;
+        }
+
+        .stat-box:nth-child(2) { animation-delay: 0.3s; }
+        .stat-box:nth-child(3) { animation-delay: 0.6s; }
+        .stat-box:nth-child(4) { animation-delay: 0.9s; }
+
+        .stat-box:hover {
+            transform: translateY(-4px);
+            border-color: rgba(200, 213, 224, 0.15);
+        }
+
+        .stat-box .icon {
+            font-size: 18px;
+            margin-bottom: 4px;
+        }
+
+        .stat-box .label {
+            color: #9BA5AF;
+            font-size: 12px;
+        }
+
+        .stat-box .value {
+            color: #F5F5F5;
+            font-size: 20px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .expenses-filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            animation: slideInDown 0.5s ease 0.2s both;
+        }
+
+        .expenses-filters input,
+        .expenses-filters select {
+            padding: 8px 12px;
+            background: rgba(28, 28, 30, 0.8);
+            border: 1px solid rgba(200, 213, 224, 0.15);
+            border-radius: 6px;
+            color: #F5F5F5;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .expenses-filters input:focus,
+        .expenses-filters select:focus {
+            outline: none;
+            border-color: #2B2D42;
+            box-shadow: 0 0 0 3px rgba(43, 45, 66, 0.15);
+        }
+
+        .expenses-filters input::placeholder {
+            color: #9BA5AF;
+            opacity: 0.5;
+        }
+
+        .expenses-table-container {
+            background: rgba(28, 28, 30, 0.8);
+            border-radius: 12px;
+            border: 1px solid rgba(200, 213, 224, 0.08);
+            overflow: hidden;
+            animation: fadeScale 0.5s ease 0.3s both;
+        }
+
+        .expenses-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .expenses-table th {
+            padding: 12px 15px;
+            text-align: right;
+            color: #9BA5AF;
+            font-weight: 600;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(200, 213, 224, 0.08);
+            background: rgba(0, 0, 0, 0.2);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .expenses-table td {
+            padding: 12px 15px;
+            color: #F5F5F5;
+            border-bottom: 1px solid rgba(200, 213, 224, 0.04);
+            font-size: 14px;
+        }
+
+        .expenses-table tbody tr {
+            transition: all 0.3s ease;
+        }
+
+        .expenses-table tbody tr:hover {
+            background: rgba(43, 45, 66, 0.1);
+        }
+
+        .btn-add-expense {
+            padding: 10px 20px;
+            background: #2B2D42;
+            color: #F5F5F5;
+            border: 1px solid #C8D5E0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+
+        .btn-add-expense:hover:not(:disabled) {
+            background: #E8EDF2;
+            color: #0A0A0A;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(43, 45, 66, 0.3);
+        }
+
+        .btn-add-expense:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-export {
+            padding: 10px 20px;
+            background: transparent;
+            color: #9BA5AF;
+            border: 1px solid rgba(200, 213, 224, 0.15);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-export:hover {
+            border-color: #9BA5AF;
+            color: #F5F5F5;
+            transform: translateY(-2px);
+        }
+
+        .btn-action {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-action.edit {
+            background: rgba(43, 45, 66, 0.3);
+            color: #E8EDF2;
+        }
+
+        .btn-action.edit:hover:not(:disabled) {
+            background: rgba(43, 45, 66, 0.6);
+            transform: scale(1.05);
+        }
+
+        .btn-action.delete {
+            background: rgba(255, 107, 107, 0.15);
+            color: #ff6b6b;
+        }
+
+        .btn-action.delete:hover:not(:disabled) {
+            background: rgba(255, 107, 107, 0.3);
+            transform: scale(1.05);
+        }
+
+        .btn-action:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* ========================================
+           التجاوب مع الشاشات
+           ======================================== */
+        @media (max-width: 768px) {
+            .expenses-container {
+                padding: 70px 15px 15px 15px;
+            }
+
+            .expenses-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .expenses-filters {
+                flex-direction: column;
+            }
+
+            .expenses-table {
+                font-size: 12px;
+            }
+
+            .expenses-table th,
+            .expenses-table td {
+                padding: 8px 10px;
+            }
+
+            .expenses-stats {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .expenses-stats {
+                grid-template-columns: 1fr;
+            }
+
+            .stat-box .value {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="expenses-container">
+        <div class="expenses-header">
+            <h1 class="expenses-title">المصروفات <span>التشغيلية</span></h1>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn-export" id="exportBtn">📊 تصدير</button>
+                <button class="btn-add-expense" id="addExpenseBtn">+ إضافة مصروف</button>
+            </div>
+        </div>
+
+        <div class="expenses-stats" id="expensesStats">
+            <div class="stat-box">
+                <div class="icon">💰</div>
+                <div class="label">إجمالي المصروفات</div>
+                <div class="value" id="totalExpenses">0 ج.م</div>
+            </div>
+            <div class="stat-box">
+                <div class="icon">📊</div>
+                <div class="label">متوسط المصروفات</div>
+                <div class="value" id="averageExpenses">0 ج.م</div>
+            </div>
+            <div class="stat-box">
+                <div class="icon">📈</div>
+                <div class="label">أعلى مصروف</div>
+                <div class="value" id="maxExpense">0 ج.م</div>
+            </div>
+            <div class="stat-box">
+                <div class="icon">📋</div>
+                <div class="label">عدد المصروفات</div>
+                <div class="value" id="expenseCount">0</div>
+            </div>
+        </div>
+
+        <div class="expenses-filters">
+            <input type="date" id="filterStart" placeholder="من تاريخ">
+            <input type="date" id="filterEnd" placeholder="إلى تاريخ">
+            <select id="filterCategory">
+                <option value="">جميع الفئات</option>
+                <option value="مواد خام">مواد خام</option>
+                <option value="صيانة">صيانة</option>
+                <option value="رواتب">رواتب</option>
+                <option value="نثريات">نثريات</option>
+                <option value="فواتير">فواتير</option>
+                <option value="آلات">آلات</option>
+                <option value="أخرى">أخرى</option>
+            </select>
+            <input type="text" id="filterSearch" placeholder="🔍 بحث..." style="flex: 1;">
+        </div>
+
+        <div class="expenses-table-container">
+            <table class="expenses-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>الفئة</th>
+                        <th>الوصف</th>
+                        <th>المبلغ</th>
+                        <th>التاريخ</th>
+                        <th>طريقة الدفع</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="expensesTableBody">
+                    <!-- سيتم ملء البيانات بواسطة JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="./expenses.js"></script>
+</body>
+</html>
