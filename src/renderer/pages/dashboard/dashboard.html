@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - سديم</title>
+    <link rel="stylesheet" href="../../styles/global.css">
+    <style>
+        /* ========================================
+           أنميشن لوحة التحكم
+           ======================================== */
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes floatUp {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-8px);
+            }
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(43, 45, 66, 0.2);
+            }
+            50% {
+                box-shadow: 0 0 40px rgba(43, 45, 66, 0.4);
+            }
+        }
+
+        @keyframes shimmerEffect {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        @keyframes countUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .dashboard-container {
+            padding: 80px 30px 30px 30px;
+            height: 100vh;
+            overflow-y: auto;
+            animation: fadeIn 0.6s ease;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            animation: slideInRight 0.6s ease;
+        }
+
+        .dashboard-title {
+            font-size: 28px;
+            font-weight: 300;
+            color: #F5F5F5;
+        }
+
+        .dashboard-title span {
+            color: #C8D5E0;
+            background: linear-gradient(90deg, #C8D5E0, #E8EDF2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .dashboard-date {
+            color: #9BA5AF;
+            font-size: 14px;
+            padding: 8px 16px;
+            background: rgba(28, 28, 30, 0.6);
+            border-radius: 20px;
+            border: 1px solid rgba(200, 213, 224, 0.05);
+            backdrop-filter: blur(10px);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(28, 28, 30, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(200, 213, 224, 0.08);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            animation: scaleIn 0.5s ease forwards;
+            animation-delay: calc(var(--delay, 0) * 0.1s);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #2B2D42, #E8EDF2, #2B2D42);
+            background-size: 200% 100%;
+            animation: shimmerEffect 3s infinite;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(200, 213, 224, 0.2);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .stat-card .stat-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+            display: inline-block;
+            animation: floatUp 3s ease-in-out infinite;
+        }
+
+        .stat-label {
+            color: #9BA5AF;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 600;
+            color: #F5F5F5;
+            animation: countUp 0.8s ease forwards;
+        }
+
+        .stat-change {
+            display: inline-block;
+            font-size: 12px;
+            padding: 2px 10px;
+            border-radius: 12px;
+            margin-top: 8px;
+            animation: fadeIn 0.6s ease 0.5s both;
+        }
+
+        .stat-change.positive {
+            color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .stat-change.negative {
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+        }
+
+        .stat-change.warning {
+            color: #ffc107;
+            background: rgba(255, 193, 7, 0.1);
+        }
+
+        .dashboard-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            animation: slideInLeft 0.6s ease 0.3s both;
+        }
+
+        .content-card {
+            background: rgba(28, 28, 30, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(200, 213, 224, 0.08);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .content-card:hover {
+            border-color: rgba(200, 213, 224, 0.15);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-title {
+            color: #F5F5F5;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title .view-all {
+            color: #9BA5AF;
+            font-size: 12px;
+            cursor: pointer;
+            transition: color 0.3s;
+            padding: 4px 12px;
+            border-radius: 12px;
+            background: rgba(200, 213, 224, 0.05);
+        }
+
+        .card-title .view-all:hover {
+            color: #F5F5F5;
+            background: rgba(200, 213, 224, 0.1);
+        }
+
+        .activity-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(200, 213, 224, 0.05);
+            transition: all 0.3s ease;
+            animation: slideInRight 0.4s ease forwards;
+            opacity: 0;
+        }
+
+        .activity-item:nth-child(1) { animation-delay: 0.1s; }
+        .activity-item:nth-child(2) { animation-delay: 0.2s; }
+        .activity-item:nth-child(3) { animation-delay: 0.3s; }
+        .activity-item:nth-child(4) { animation-delay: 0.4s; }
+        .activity-item:nth-child(5) { animation-delay: 0.5s; }
+
+        .activity-item:hover {
+            background: rgba(43, 45, 66, 0.1);
+            border-radius: 8px;
+            padding: 12px 10px;
+            margin: 0 -10px;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-info {
+            flex: 1;
+        }
+
+        .activity-title {
+            color: #F5F5F5;
+            font-size: 14px;
+        }
+
+        .activity-time {
+            color: #9BA5AF;
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .activity-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            animation: pulseGlow 2s ease-in-out infinite;
+        }
+
+        .activity-status.success {
+            background: rgba(76, 175, 80, 0.15);
+            color: #4CAF50;
+        }
+
+        .activity-status.warning {
+            background: rgba(255, 193, 7, 0.15);
+            color: #ffc107;
+        }
+
+        .activity-status.danger {
+            background: rgba(255, 107, 107, 0.15);
+            color: #ff6b6b;
+        }
+
+        .activity-status.info {
+            background: rgba(33, 150, 243, 0.15);
+            color: #2196F3;
+        }
+
+        .alert-item {
+            display: flex;
+            align-items: start;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255, 193, 7, 0.05);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 3px solid transparent;
+            transition: all 0.3s ease;
+            animation: slideInLeft 0.4s ease forwards;
+            opacity: 0;
+        }
+
+        .alert-item:nth-child(1) { animation-delay: 0.1s; }
+        .alert-item:nth-child(2) { animation-delay: 0.2s; }
+        .alert-item:nth-child(3) { animation-delay: 0.3s; }
+
+        .alert-item:hover {
+            background: rgba(255, 193, 7, 0.08);
+            transform: translateX(-4px);
+        }
+
+        .alert-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .alert-item.warning {
+            border-left-color: #ffc107;
+        }
+
+        .alert-item.danger {
+            border-left-color: #ff6b6b;
+        }
+
+        .alert-item.success {
+            border-left-color: #4CAF50;
+        }
+
+        .alert-item.info {
+            border-left-color: #2196F3;
+        }
+
+        .alert-icon {
+            font-size: 18px;
+            margin-top: 2px;
+            animation: floatUp 2s ease-in-out infinite;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-text {
+            color: #F5F5F5;
+            font-size: 14px;
+        }
+
+        .alert-detail {
+            color: #9BA5AF;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 200px;
+            margin-top: 10px;
+            padding: 10px 0;
+        }
+
+        .chart-bar {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            height: 150px;
+            gap: 10px;
+            padding-top: 10px;
+        }
+
+        .chart-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            animation: scaleIn 0.5s ease forwards;
+            opacity: 0;
+        }
+
+        .chart-column:nth-child(1) { animation-delay: 0.1s; }
+        .chart-column:nth-child(2) { animation-delay: 0.2s; }
+        .chart-column:nth-child(3) { animation-delay: 0.3s; }
+        .chart-column:nth-child(4) { animation-delay: 0.4s; }
+        .chart-column:nth-child(5) { animation-delay: 0.5s; }
+        .chart-column:nth-child(6) { animation-delay: 0.6s; }
+        .chart-column:nth-child(7) { animation-delay: 0.7s; }
+
+        .chart-bar-item {
+            width: 100%;
+            max-width: 40px;
+            background: linear-gradient(to top, #2B2D42, #E8EDF2);
+            border-radius: 4px 4px 0 0;
+            min-height: 5px;
+            transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            cursor: pointer;
+        }
+
+        .chart-bar-item:hover {
+            opacity: 0.8;
+            transform: scaleY(1.05);
+            transform-origin: bottom;
+        }
+
+        .chart-bar-item .tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(28, 28, 30, 0.9);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            color: #F5F5F5;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .chart-bar-item:hover .tooltip {
+            opacity: 1;
+        }
+
+        .chart-label {
+            color: #9BA5AF;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        /* ========================================
+           وضع القراءة فقط
+           ======================================== */
+        .readonly-banner {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.2);
+            border-radius: 8px;
+            padding: 12px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: pulseGlow 2s ease-in-out infinite;
+        }
+
+        .readonly-banner .icon {
+            font-size: 20px;
+        }
+
+        .readonly-banner .text {
+            color: #ffc107;
+            font-size: 14px;
+        }
+
+        .readonly-banner .subtext {
+            color: #9BA5AF;
+            font-size: 12px;
+        }
+
+        /* ========================================
+           التجاوب مع الشاشات
+           ======================================== */
+        @media (max-width: 992px) {
+            .dashboard-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                padding: 70px 15px 15px 15px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 12px;
+            }
+
+            .stat-value {
+                font-size: 24px;
+            }
+
+            .dashboard-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .chart-bar {
+                height: 120px;
+            }
+
+            .chart-bar-item {
+                max-width: 30px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+
+            .stat-card {
+                padding: 15px;
+            }
+
+            .stat-value {
+                font-size: 20px;
+            }
+
+            .activity-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .readonly-banner {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- ر Banner وضع القراءة فقط -->
+        <div id="readonlyBanner" class="readonly-banner" style="display: none;">
+            <span class="icon">🔒</span>
+            <div>
+                <div class="text">⚠️ وضع القراءة فقط</div>
+                <div class="subtext">انتهت الفترة التجريبية أو لم يتم التفعيل. يمكنك عرض البيانات فقط.</div>
+            </div>
+        </div>
+
+        <div class="dashboard-header">
+            <h1 class="dashboard-title">لوحة <span>التحكم</span></h1>
+            <div class="dashboard-date" id="currentDate"></div>
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card" style="--delay: 0">
+                <span class="stat-icon">👷</span>
+                <div class="stat-label">إجمالي العمال</div>
+                <div class="stat-value" id="totalWorkers">0</div>
+                <span class="stat-change positive">▲ 12% هذا الشهر</span>
+            </div>
+            <div class="stat-card" style="--delay: 1">
+                <span class="stat-icon">💰</span>
+                <div class="stat-label">المصروفات هذا الشهر</div>
+                <div class="stat-value" id="monthlyExpenses">0 ج.م</div>
+                <span class="stat-change negative">▼ 5% عن الشهر الماضي</span>
+            </div>
+            <div class="stat-card" style="--delay: 2">
+                <span class="stat-icon">📦</span>
+                <div class="stat-label">الإنتاج اليومي</div>
+                <div class="stat-value" id="dailyProduction">0</div>
+                <span class="stat-change positive">▲ 8% عن الأمس</span>
+            </div>
+            <div class="stat-card" style="--delay: 3">
+                <span class="stat-icon">📋</span>
+                <div class="stat-label">الحضور اليوم</div>
+                <div class="stat-value" id="todayAttendance">0%</div>
+                <span class="stat-change positive">▲ 3% عن الأمس</span>
+            </div>
+            <div class="stat-card" style="--delay: 4">
+                <span class="stat-icon">📊</span>
+                <div class="stat-label">الرواتب المستحقة</div>
+                <div class="stat-value" id="pendingPayroll">0 ج.م</div>
+                <span class="stat-change warning">● قيد الانتظار</span>
+            </div>
+            <div class="stat-card" style="--delay: 5">
+                <span class="stat-icon">💳</span>
+                <div class="stat-label">السلف النشطة</div>
+                <div class="stat-value" id="activeAdvances">0</div>
+                <span class="stat-change negative">● غير مسددة</span>
+            </div>
+        </div>
+
+        <div class="dashboard-content">
+            <div class="content-card">
+                <div class="card-title">
+                    <span>🔄 النشاطات الأخيرة</span>
+                    <span class="view-all">عرض الكل</span>
+                </div>
+                <div id="recentActivities">
+                    <div class="activity-item">
+                        <div class="activity-info">
+                            <div class="activity-title">تم تسجيل حضور 5 عمال</div>
+                            <div class="activity-time">منذ 10 دقائق</div>
+                        </div>
+                        <span class="activity-status success">تم</span>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-info">
+                            <div class="activity-title">تم إضافة مصروف جديد</div>
+                            <div class="activity-time">منذ 30 دقيقة</div>
+                        </div>
+                        <span class="activity-status warning">قيد المراجعة</span>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-info">
+                            <div class="activity-title">انتهاء صلاحية ترخيص تجريبي</div>
+                            <div class="activity-time">منذ ساعة</div>
+                        </div>
+                        <span class="activity-status danger">تنبيه</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card">
+                <div class="card-title">
+                    <span>🔔 التنبيهات</span>
+                    <span class="view-all">تحديث</span>
+                </div>
+                <div id="alerts">
+                    <div class="alert-item warning">
+                        <div class="alert-icon">⚠️</div>
+                        <div class="alert-content">
+                            <div class="alert-text">انتهاء الفترة التجريبية</div>
+                            <div class="alert-detail">متبقي يومين على انتهاء الترخيص</div>
+                        </div>
+                    </div>
+                    <div class="alert-item info">
+                        <div class="alert-icon">📊</div>
+                        <div class="alert-content">
+                            <div class="alert-text">تقرير الإنتاج الشهري</div>
+                            <div class="alert-detail">تم تحديث التقرير بنجاح</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-card" style="margin-top: 20px; animation: slideInLeft 0.6s ease 0.6s both;">
+            <div class="card-title">
+                <span>📈 الإنتاج اليومي</span>
+                <span class="view-all">آخر 7 أيام</span>
+            </div>
+            <div class="chart-container">
+                <div class="chart-bar" id="productionChart">
+                    <div class="chart-column">
+                        <div class="chart-bar-item" style="height: 60%;">
+                            <span class="tooltip">60 وحدة</span>
+                        </div>
+                        <div class="chart-label">أحد</div>
+                    </div>
+                    <div class="chart-column">
+                        <div class="chart-bar-item" style="height: 80%;">
+                            <span class="tooltip">80 وحدة</span>
+                        </div>
+                        <div class="chart-label">اثنين</div>
+                    </div>
+                    <div class="chart-column">
+                        <div class="chart-bar-item" style="height: 45%;">
+                            <span class="tooltip">45 وحدة</span>
+                        </div>
+                        <div class="chart-label">ثلاثاء</div>
+                    </div>
+                    <div class="chart-column">
+                        <div class="chart-bar-item" style="height: 90%;">
+                            <span class="tooltip">90 وحدة</span>
+                        </div>
+                        <div class="chart-label">أربعاء</div>
+                    </div>
+                    <div class="chart-column">
+                        <div class="chart-bar-item" style="height: 70%;">
+                            <span class="tooltip">70 وحدة</span>
+                        </div>
+                        <div class="chart-label">خميس</div>
+                    </div>
+                    <div class="chart-column">
+                        <div class="chart-bar-item" style="height: 55%;">
+                            <span class="tooltip">55 وحدة</span>
+                        </div>
+                        <div class="chart-label">جمعة</div>
+                    </div>
+                    <div class="chart-column">
+                        <div class="chart-bar-item" style="height: 85%;">
+                            <span class="tooltip">85 وحدة</span>
+                        </div>
+                        <div class="chart-label">سبت</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./dashboard.js"></script>
+</body>
+</html>
