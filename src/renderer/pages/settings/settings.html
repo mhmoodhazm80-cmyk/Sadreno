@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الإعدادات - سديم</title>
+    <link rel="stylesheet" href="../../styles/global.css">
+    <style>
+        /* ========================================
+           أنميشن الإعدادات
+           ======================================== */
+        @keyframes slideInPanel {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes glowBorder {
+            0%, 100% {
+                border-color: rgba(43, 45, 66, 0.2);
+            }
+            50% {
+                border-color: rgba(200, 213, 224, 0.3);
+            }
+        }
+
+        @keyframes handPoint {
+            0%, 100% {
+                transform: translateX(0) scale(1);
+            }
+            50% {
+                transform: translateX(5px) scale(1.1);
+            }
+        }
+
+        .settings-container {
+            padding: 80px 30px 30px 30px;
+            height: 100vh;
+            overflow-y: auto;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .settings-header {
+            margin-bottom: 30px;
+            animation: slideInDown 0.5s ease;
+        }
+
+        .settings-title {
+            font-size: 28px;
+            font-weight: 300;
+            color: #F5F5F5;
+        }
+
+        .settings-title span {
+            color: #C8D5E0;
+            background: linear-gradient(90deg, #C8D5E0, #E8EDF2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 30px;
+            animation: fadeScale 0.5s ease 0.2s both;
+        }
+
+        .settings-sidebar {
+            background: rgba(28, 28, 30, 0.8);
+            border: 1px solid rgba(200, 213, 224, 0.08);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .settings-sidebar-item {
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #9BA5AF;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            position: relative;
+        }
+
+        .settings-sidebar-item:hover {
+            background: rgba(43, 45, 66, 0.2);
+            color: #F5F5F5;
+            transform: translateX(-4px);
+        }
+
+        .settings-sidebar-item.active {
+            background: rgba(43, 45, 66, 0.3);
+            color: #F5F5F5;
+            border-right: 3px solid #E8EDF2;
+        }
+
+        .settings-sidebar-item .icon {
+            font-size: 18px;
+        }
+
+        .settings-sidebar-item .badge-new {
+            background: #ff6b6b;
+            color: white;
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 10px;
+            margin-right: auto;
+        }
+
+        .settings-content {
+            background: rgba(28, 28, 30, 0.8);
+            border: 1px solid rgba(200, 213, 224, 0.08);
+            border-radius: 12px;
+            padding: 30px;
+            animation: slideInPanel 0.4s ease;
+        }
+
+        .settings-panel {
+            display: none;
+        }
+
+        .settings-panel.active {
+            display: block;
+            animation: slideInPanel 0.3s ease;
+        }
+
+        .settings-panel-title {
+            color: #F5F5F5;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .settings-panel-title .icon {
+            font-size: 24px;
+        }
+
+        .settings-group {
+            margin-bottom: 25px;
+        }
+
+        .settings-group-label {
+            color: #9BA5AF;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(200, 213, 224, 0.04);
+            transition: all 0.3s ease;
+        }
+
+        .settings-row:hover {
+            background: rgba(43, 45, 66, 0.05);
+            padding: 12px 10px;
+            margin: 0 -10px;
+            border-radius: 6px;
+        }
+
+        .settings-row:last-child {
+            border-bottom: none;
+        }
+
+        .settings-row-label {
+            color: #F5F5F5;
+            font-size: 14px;
+        }
+
+        .settings-row-value {
+            color: #9BA5AF;
+            font-size: 14px;
+        }
+
+        .settings-input {
+            padding: 8px 12px;
+            background: rgba(10, 10, 10, 0.6);
+            border: 1px solid rgba(200, 213, 224, 0.15);
+            border-radius: 6px;
+            color: #F5F5F5;
+            font-size: 14px;
+            width: 200px;
+            transition: all 0.3s ease;
+        }
+
+        .settings-input:focus {
+            outline: none;
+            border-color: #2B2D42;
+            box-shadow: 0 0 0 3px rgba(43, 45, 66, 0.15);
+        }
+
+        .settings-input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .settings-select {
+            padding: 8px 12px;
+            background: rgba(10, 10, 10, 0.6);
+            border: 1px solid rgba(200, 213, 224, 0.15);
+            border-radius: 6px;
+            color: #F5F5F5;
+            font-size: 14px;
+            cursor: pointer;
+            width: 200px;
+            transition: all 0.3s ease;
+        }
+
+        .settings-select:focus {
+            outline: none;
+            border-color: #2B2D42;
+        }
+
+        .settings-select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .settings-toggle {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            background: rgba(200, 213, 224, 0.15);
+            border-radius: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .settings-toggle.active {
+            background: #2B2D42;
+        }
+
+        .settings-toggle .toggle-handle {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 22px;
+            height: 22px;
+            background: #F5F5F5;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .settings-toggle.active .toggle-handle {
+            left: 24px;
+        }
+
+        .settings-toggle:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-save-settings {
+            padding: 10px 30px;
+            background: #2B2D42;
+            color: #F5F5F5;
+            border: 1px solid #C8D5E0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            font-weight: 600;
+        }
+
+        .btn-save-settings:hover:not(:disabled) {
+            background: #E8EDF2;
+            color: #0A0A0A;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(43, 45, 66, 0.3);
+        }
+
+        .btn-save-settings:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-backup {
+            padding: 10px 20px;
+            background: transparent;
+            color: #9BA5AF;
+            border: 1px solid rgba(200, 213, 224, 0.15);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-backup:hover:not(:disabled) {
+            border-color: #9BA5AF;
+            color: #F5F5F5;
+            transform: translateY(-2px);
+        }
+
+        .btn-backup:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .license-info {
+            background: rgba(43, 45, 66, 0.1);
+            border: 1px solid rgba(43, 45, 66, 0.2);
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin: 10px 0;
+            animation: glowBorder 3s ease-in-out infinite;
+        }
+
+        .license-info .label {
+            color: #9BA5AF;
+            font-size: 12px;
+        }
+
+        .license-info .value {
+            color: #F5F5F5;
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .license-info .value.valid {
+            color: #4CAF50;
+        }
+
+        .license-info .value.invalid {
+            color: #ff6b6b;
+        }
+
+        .license-info .value.trial {
+            color: #ffc107;
+        }
+
+        .license-info .hwid-box {
+            background: rgba(10, 10, 10, 0.4);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-family: monospace;
+            direction: ltr;
+            font-size: 12px;
+            color: #E8EDF2;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            word-break: break-all;
+        }
+
+        .license-info .hwid-box .copy-btn {
+            background: rgba(43, 45, 66, 0.3);
+            border: none;
+            color: #9BA5AF;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.3s ease;
+        }
+
+        .license-info .hwid-box .copy-btn:hover {
+            background: rgba(43, 45, 66, 0.6);
+            color: #F5F5F5;
+        }
+
+        .license-info .whatsapp-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 20px;
+            background: #25D366;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+            text-decoration: none;
+        }
+
+        .license-info .whatsapp-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 20px rgba(37, 211, 102, 0.3);
+        }
+
+        .hand-pointer {
+            display: inline-block;
+            animation: handPoint 1.5s ease-in-out infinite;
+            font-size: 24px;
+            margin-left: 8px;
+        }
+
+        /* ========================================
+           التجاوب مع الشاشات
+           ======================================== */
+        @media (max-width: 992px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .settings-sidebar {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 5px;
+                padding: 15px;
+            }
+
+            .settings-sidebar-item {
+                flex: 1;
+                min-width: 100px;
+                justify-content: center;
+                padding: 10px 15px;
+            }
+
+            .settings-sidebar-item.active {
+                border-right: none;
+                border-bottom: 3px solid #E8EDF2;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .settings-container {
+                padding: 70px 15px 15px 15px;
+            }
+
+            .settings-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+
+            .settings-input,
+            .settings-select {
+                width: 100%;
+            }
+
+            .settings-content {
+                padding: 20px;
+            }
+
+            .settings-sidebar-item {
+                font-size: 12px;
+                padding: 8px 12px;
+                min-width: 80px;
+            }
+
+            .license-info .hwid-box {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .settings-sidebar-item .icon {
+                font-size: 14px;
+            }
+            
+            .settings-sidebar-item span:not(.icon) {
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="settings-container">
+        <div class="settings-header">
+            <h1 class="settings-title">⚙️ الإعدادات <span>والنظام</span></h1>
+        </div>
+
+        <div class="settings-grid">
+            <div class="settings-sidebar">
+                <div class="settings-sidebar-item active" data-panel="general">
+                    <span class="icon">⚙️</span>
+                    <span>عام</span>
+                </div>
+                <div class="settings-sidebar-item" data-panel="license">
+                    <span class="icon">🔑</span>
+                    <span>الترخيص والتفعيل</span>
+                    <span class="badge-new">هام</span>
+                </div>
+                <div class="settings-sidebar-item" data-panel="backup">
+                    <span class="icon">💾</span>
+                    <span>النسخ الاحتياطي</span>
+                </div>
+                <div class="settings-sidebar-item" data-panel="system">
+                    <span class="icon">🖥️</span>
+                    <span>معلومات النظام</span>
+                </div>
+                <div class="settings-sidebar-item" data-panel="advanced">
+                    <span class="icon">🔧</span>
+                    <span>إعدادات متقدمة</span>
+                </div>
+            </div>
+
+            <div class="settings-content">
+                <!-- General Settings -->
+                <div class="settings-panel active" id="panel-general">
+                    <h2 class="settings-panel-title">
+                        <span class="icon">⚙️</span>
+                        الإعدادات العامة
+                    </h2>
+                    
+                    <div class="settings-group">
+                        <span class="settings-group-label">معلومات الشركة</span>
+                        <div class="settings-row">
+                            <span class="settings-row-label">🏢 اسم الشركة</span>
+                            <input type="text" class="settings-input" id="companyName" placeholder="اسم الشركة">
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-row-label">📍 عنوان الشركة</span>
+                            <input type="text" class="settings-input" id="companyAddress" placeholder="العنوان">
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-row-label">📞 هاتف الشركة</span>
+                            <input type="tel" class="settings-input" id="companyPhone" placeholder="رقم الهاتف">
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <span class="settings-group-label">إعدادات العملة</span>
+                        <div class="settings-row">
+                            <span class="settings-row-label">💰 رمز العملة</span>
+                            <input type="text" class="settings-input" id="currencySymbol" value="ج.م">
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-row-label">🔢 عدد الأرقام العشرية</span>
+                            <select class="settings-select" id="decimalPlaces">
+                                <option value="0">0</option>
+                                <option value="1">1</option>
+                                <option value="2" selected>2</option>
+                                <option value="3">3</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <span class="settings-group-label">إعدادات الرواتب</span>
+                        <div class="settings-row">
+                            <span class="settings-row-label">📅 دورة الرواتب</span>
+                            <select class="settings-select" id="payrollCycle">
+                                <option value="weekly">أسبوعي</option>
+                                <option value="monthly" selected>شهري</option>
+                            </select>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-row-label">📆 يوم صرف الرواتب</span>
+                            <input type="number" class="settings-input" id="payrollDay" value="1" min="1" max="28">
+                        </div>
+                    </div>
+
+                    <button class="btn-save-settings" id="saveGeneralSettings">💾 حفظ الإعدادات</button>
+                </div>
+
+                <!-- License Settings -->
+                <div class="settings-panel" id="panel-license">
+                    <h2 class="settings-panel-title">
+                        <span class="icon">🔑</span>
+                        الترخيص والتفعيل
+                    </h2>
+                    
+                    <div class="license-info">
+                        <div class="label">📋 حالة الترخيص</div>
+                        <div class="value" id="licenseStatus">⏳ جاري التحقق...</div>
+                    </div>
+
+                    <div class="license-info">
+                        <div class="label">🆔 معرف الجهاز (HWID)</div>
+                        <div class="hwid-box">
+                            <span id="hwidDisplay">جاري التحميل...</span>
+                            <button class="copy-btn" id="copyHwidBtn">📋 نسخ</button>
+                        </div>
+                        <div style="margin-top: 8px; font-size: 12px; color: #9BA5AF;">
+                            هذا المعرف فريد لكل جهاز، يُستخدم في توليد كود التفعيل
+                        </div>
+                    </div>
+
+                    <div class="license-info">
+                        <div class="label">📞 رقم الدعم الفني</div>
+                        <div class="value">01554567596</div>
+                        <div style="margin-top: 8px; font-size: 12px; color: #9BA5AF;">
+                            المالكين: <strong>محمود حازم</strong> و <strong>مصطفى رينو</strong>
+                        </div>
+                        <a href="https://wa.me/201554567596?text=أحتاج%20تفعيل%20برنامج%20سديم%20-%20معرف%20الجهاز:" 
+                           class="whatsapp-btn" target="_blank">
+                            💬 تواصل عبر واتساب
+                        </a>
+                    </div>
+
+                    <div class="settings-group">
+                        <span class="settings-group-label">🔐 تفعيل البرنامج</span>
+                        <div class="settings-row">
+                            <span class="settings-row-label">
+                                🔑 كود التفعيل
+                                <span class="hand-pointer">👆</span>
+                            </span>
+                            <input type="text" class="settings-input" id="licenseKey" placeholder="أدخل كود التفعيل" style="width: 300px; direction: ltr;">
+                        </div>
+                        <div style="font-size: 12px; color: #9BA5AF; margin-top: 8px;">
+                            💡 أدخل الكود ثم اضغط "تفعيل" لتفعيل البرنامج
+                        </div>
+                    </div>
+
+                    <button class="btn-save-settings" id="activateLicense">🚀 تفعيل</button>
+                </div>
+
+                <!-- Backup Settings -->
+                <div class="settings-panel" id="panel-backup">
+                    <h2 class="settings-panel-title">
+                        <span class="icon">💾</span>
+                        النسخ الاحتياطي
+                    </h2>
+                    
+                    <div class="settings-group">
+                        <span class="settings-group-label">⚙️ إعدادات النسخ الاحتياطي</span>
+                        <div class="settings-row">
+                            <span class="settings-row-label">🔄 النسخ الاحتياطي التلقائي</span>
+                            <div class="settings-toggle active" id="autoBackup">
+                                <div class="toggle-handle"></div>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-row-label">⏰ فترة النسخ الاحتياطي (ساعات)</span>
+                            <input type="number" class="settings-input" id="backupInterval" value="24" min="1">
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-row-label">📅 فترة الاحتفاظ (أيام)</span>
+                            <input type="number" class="settings-input" id="backupRetention" value="30" min="1">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px;">
+                        <button class="btn-backup" id="createBackupBtn">📦 إنشاء نسخة احتياطية</button>
+                        <button class="btn-backup" id="restoreBackupBtn">📂 استعادة نسخة</button>
+                    </div>
+                </div>
+
+                <!-- System Settings -->
+                <div class="settings-panel" id="panel-system">
+                    <h2 class="settings-panel-title">
+                        <span class="icon">🖥️</span>
+                        معلومات النظام
+                    </h2>
+                    
+                    <div class="settings-group">
+                        <span class="settings-group-label">📊 معلومات التطبيق</span>
+                        <div class="settings-row">
+                            <span class="settings-row-label">📦 الإصدار</span>
+                            <span class="settings-row-value" id="appVersion">1.0.0</span>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-row-label">🆔 المعرف الفريد للجهاز (HWID)</span>
+                            <span class="settings-row-value" id="hwid" style="direction: ltr; font-family: monospace; font-size: 12px;">⏳ جاري التحميل...</span>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-row-label">💻 نظام التشغيل</span>
+                            <span class="settings-row-value" id="osInfo">⏳ جاري التحميل...</span>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-row-label">📊 حجم قاعدة البيانات</span>
+                            <span class="settings-row-value" id="dbSize">⏳ جاري التحميل...</span>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-row-label">🔒 وضع القراءة فقط</span>
+                            <span class="settings-row-value" id="readOnlyStatus">⏳ جاري التحقق...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Advanced Settings -->
+                <div class="settings-panel" id="panel-advanced">
+                    <h2 class="settings-panel-title">
+                        <span class="icon">🔧</span>
+                        إعدادات متقدمة
+                    </h2>
+                    
+                    <div class="settings-group">
+                        <span class="settings-group-label">⚙️ إعدادات النظام</span>
+                        <div class="settings-row">
+                            <span class="settings-row-label">📝 تمكين سجل العمليات</span>
+                            <div class="settings-toggle active" id="auditLog">
+                                <div class="toggle-handle"></div>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-row-label">🔔 الإشعارات</span>
+                            <div class="settings-toggle active" id="notifications">
+                                <div class="toggle-handle"></div>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-row-label">🌙 الوضع الداكن</span>
+                            <div class="settings-toggle active" id="darkMode">
+                                <div class="toggle-handle"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <span class="settings-group-label">🗑️ إدارة البيانات</span>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                            <button class="btn-backup" id="clearCacheBtn" style="color: #ff6b6b; border-color: rgba(255, 107, 107, 0.2);">
+                                🗑️ مسح الكاش
+                            </button>
+                            <button class="btn-backup" id="resetSettingsBtn" style="color: #ff6b6b; border-color: rgba(255, 107, 107, 0.2);">
+                                🔄 إعادة تعيين الإعدادات
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./settings.js"></script>
+</body>
+</html>
