@@ -6,9 +6,6 @@
     <title>الإعدادات - سديم</title>
     <link rel="stylesheet" href="../../styles/global.css">
     <style>
-        /* ========================================
-           أنميشن الإعدادات
-           ======================================== */
         @keyframes slideInPanel {
             from {
                 opacity: 0;
@@ -408,9 +405,6 @@
             margin-left: 8px;
         }
 
-        /* ========================================
-           التجاوب مع الشاشات
-           ======================================== */
         @media (max-width: 992px) {
             .settings-grid {
                 grid-template-columns: 1fr;
@@ -511,7 +505,6 @@
             </div>
 
             <div class="settings-content">
-                <!-- General Settings -->
                 <div class="settings-panel active" id="panel-general">
                     <h2 class="settings-panel-title">
                         <span class="icon">⚙️</span>
@@ -569,7 +562,6 @@
                     <button class="btn-save-settings" id="saveGeneralSettings">💾 حفظ الإعدادات</button>
                 </div>
 
-                <!-- License Settings -->
                 <div class="settings-panel" id="panel-license">
                     <h2 class="settings-panel-title">
                         <span class="icon">🔑</span>
@@ -614,14 +606,14 @@
                             <input type="text" class="settings-input" id="licenseKey" placeholder="أدخل كود التفعيل" style="width: 300px; direction: ltr;">
                         </div>
                         <div style="font-size: 12px; color: #9BA5AF; margin-top: 8px;">
-                            💡 أدخل الكود ثم اضغط "تفعيل" لتفعيل البرنامج
+                            💡 أدخل الكود ثم اضغط "تفعيل" لتفعيل البرنامج<br>
+                            <span style="color: #ffc107;">🔓 الكود التجريبي: mostafa_reno (5 أيام)</span>
                         </div>
                     </div>
 
                     <button class="btn-save-settings" id="activateLicense">🚀 تفعيل</button>
                 </div>
 
-                <!-- Backup Settings -->
                 <div class="settings-panel" id="panel-backup">
                     <h2 class="settings-panel-title">
                         <span class="icon">💾</span>
@@ -652,7 +644,6 @@
                     </div>
                 </div>
 
-                <!-- System Settings -->
                 <div class="settings-panel" id="panel-system">
                     <h2 class="settings-panel-title">
                         <span class="icon">🖥️</span>
@@ -684,7 +675,6 @@
                     </div>
                 </div>
 
-                <!-- Advanced Settings -->
                 <div class="settings-panel" id="panel-advanced">
                     <h2 class="settings-panel-title">
                         <span class="icon">🔧</span>
@@ -729,6 +719,7 @@
         </div>
     </div>
 
+    <script src="../../utils/navigation.js"></script>
     <script src="./settings.js"></script>
 </body>
 </html>
