@@ -1,0 +1,57 @@
+{
+  "name": "sadeem",
+  "version": "1.0.0",
+  "description": "سديم - نظام إدارة المصانع المتكامل",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win --x64",
+    "build:win32": "electron-builder --win --ia32",
+    "dist": "electron-builder --win --x64 --ia32"
+  },
+  "author": "Sadeem Team",
+  "license": "Proprietary",
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.2.2",
+    "electron-store": "^8.1.0",
+    "node-machine-id": "^1.1.12",
+    "crypto-js": "^4.2.0",
+    "pdfkit": "^0.14.0",
+    "xlsx": "^0.18.5",
+    "fs-extra": "^11.1.1",
+    "uuid": "^9.0.1"
+  },
+  "build": {
+    "appId": "com.sadeem.factory",
+    "productName": "سديم",
+    "directories": {
+      "output": "dist",
+      "buildResources": "src/assets"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "src/assets/logo.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "سديم",
+      "installerIcon": "src/assets/logo.ico"
+    },
+    "files": [
+      "src/**/*",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "src/assets/",
+        "to": "assets/"
+      }
+    ]
+  }
+}
