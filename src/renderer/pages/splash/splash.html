@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سديم - نظام إدارة المصانع</title>
+    <style>
+        /* ========================================
+           الأنماط الأساسية
+           ======================================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap');
+
+        :root {
+            --primary: #0A0A0A;
+            --secondary: #1C1C1E;
+            --border-light: #C8D5E0;
+            --accent: #2B2D42;
+            --accent-glow: #E8EDF2;
+            --text-secondary: #9BA5AF;
+            --text-primary: #F5F5F5;
+        }
+
+        body {
+            font-family: 'Cairo', 'Segoe UI', sans-serif;
+            background: var(--primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* ========================================
+           أزرار التحكم في النافذة
+           ======================================== */
+        .window-controls {
+            position: fixed;
+            top: 0;
+            right: 0;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+            padding: 14px 20px;
+            background: rgba(10, 10, 10, 0.4);
+            backdrop-filter: blur(15px);
+            -webkit-app-region: drag;
+            border-bottom-left-radius: 12px;
+        }
+
+        .window-controls button {
+            width: 34px;
+            height: 34px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            color: #9BA5AF;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            -webkit-app-region: no-drag;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            backdrop-filter: blur(5px);
+        }
+
+        .window-controls button:hover {
+            background: rgba(200, 213, 224, 0.15);
+            color: #F5F5F5;
+            transform: scale(1.05);
+        }
+
+        .window-controls .close-btn:hover {
+            background: #ff4757;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .window-controls .minimize-btn:hover {
+            background: rgba(43, 45, 66, 0.6);
+        }
+
+        .window-controls .maximize-btn:hover {
+            background: rgba(43, 45, 66, 0.6);
+        }
+
+        .window-controls button svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* ========================================
+           الحاوية الرئيسية
+           ======================================== */
+        .splash-container {
+            width: 100vw;
+            height: 100vh;
+            background: var(--primary);
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nebula-background {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: 
+                radial-gradient(ellipse at 30% 40%, rgba(43, 45, 66, 0.4) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 60%, rgba(43, 45, 66, 0.25) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(200, 213, 224, 0.08) 0%, transparent 30%),
+                radial-gradient(ellipse at 20% 70%, rgba(43, 45, 66, 0.15) 0%, transparent 40%),
+                var(--primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            animation: nebulaPulse 8s ease-in-out infinite;
+        }
+
+        @keyframes nebulaPulse {
+            0%, 100% {
+                opacity: 0.7;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.02);
+            }
+        }
+
+        /* ========================================
+           نجوم الخلفية
+           ======================================== */
+        .star-field {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .star {
+            position: absolute;
+            border-radius: 50%;
+            background: white;
+            animation: twinkle var(--duration, 3s) ease-in-out infinite;
+            animation-delay: var(--delay, 0s);
+        }
+
+        .star.size-1 { width: 1px; height: 1px; }
+        .star.size-2 { width: 2px; height: 2px; }
+        .star.size-3 { width: 3px; height: 3px; }
+
+        @keyframes twinkle {
+            0%, 100% {
+                opacity: 0.1;
+                transform: scale(0.8);
+            }
+            25% {
+                transform: scale(1.2);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.5);
+            }
+            75% {
+                transform: scale(1.1);
+            }
+        }
+
+        /* ========================================
+           Canvas للجسيمات السديمية
+           ======================================== */
+        #nebulaCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* ========================================
+           النجم السديمي - التكوين المتطور
+           ======================================== */
+        .sadeem-star-container {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            z-index: 10;
+            margin-bottom: 15px;
+        }
+
+        /* الطبقات الغازية الأولية - السديم */
+        .nebula-cloud {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(43, 45, 66, 0.15) 0%, rgba(43, 45, 66, 0.05) 40%, transparent 70%);
+            animation: cloudExpand 4s ease-out forwards;
+        }
+
+        .nebula-cloud.cloud-1 {
+            width: 220px;
+            height: 220px;
+            animation-delay: 0s;
+            background: radial-gradient(circle, rgba(43, 45, 66, 0.2) 0%, rgba(43, 45, 66, 0.08) 40%, transparent 70%);
+        }
+
+        .nebula-cloud.cloud-2 {
+            width: 300px;
+            height: 300px;
+            animation-delay: 0.5s;
+            background: radial-gradient(circle, rgba(43, 45, 66, 0.12) 0%, rgba(43, 45, 66, 0.04) 50%, transparent 70%);
+        }
+
+        .nebula-cloud.cloud-3 {
+            width: 380px;
+            height: 380px;
+            animation-delay: 1s;
+            background: radial-gradient(circle, rgba(200, 213, 224, 0.06) 0%, transparent 60%);
+        }
+
+        .nebula-cloud.cloud-4 {
+            width: 450px;
+            height: 450px;
+            animation-delay: 1.5s;
+            background: radial-gradient(circle, rgba(43, 45, 66, 0.06) 0%, transparent 60%);
+        }
+
+        @keyframes cloudExpand {
+            0% {
+                transform: translate(-50%, -50%) scale(0.1);
+                opacity: 0;
+            }
+            30% {
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1.5);
+                opacity: 0.3;
+            }
+        }
+
+        /* الحلقة الغبارية المحيطة */
+        .dust-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            border: 1px solid rgba(200, 213, 224, 0.05);
+            animation: ringExpand 5s ease-out forwards;
+        }
+
+        .dust-ring.ring-1 {
+            width: 180px;
+            height: 180px;
+            animation-delay: 0.5s;
+        }
+
+        .dust-ring.ring-2 {
+            width: 240px;
+            height: 240px;
+            animation-delay: 1s;
+        }
+
+        .dust-ring.ring-3 {
+            width: 300px;
+            height: 300px;
+            animation-delay: 1.5s;
+            border-color: rgba(200, 213, 224, 0.03);
+        }
+
+        @keyframes ringExpand {
+            0% {
+                transform: translate(-50%, -50%) scale(0.3);
+                opacity: 0;
+            }
+            40% {
+                opacity: 0.5;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 0.1;
+            }
+        }
+
+        /* لب النجم المتشكل */
+        .star-core {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #E8EDF2 0%, #2B2D42 100%);
+            box-shadow: 
+                0 0 40px rgba(43, 45, 66, 0.6),
+                0 0 80px rgba(43, 45, 66, 0.3),
+                0 0 120px rgba(43, 45, 66, 0.15),
+                0 0 200px rgba(43, 45, 66, 0.08);
+            animation: coreFormation 4s ease-out forwards;
+            z-index: 10;
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.1);
+        }
+
+        @keyframes coreFormation {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.05);
+            }
+            20% {
+                opacity: 0.3;
+                transform: translate(-50%, -50%) scale(0.3);
+            }
+            40% {
+                opacity: 0.7;
+                transform: translate(-50%, -50%) scale(1.2);
+                box-shadow: 0 0 60px rgba(43, 45, 66, 0.8), 0 0 120px rgba(43, 45, 66, 0.4);
+            }
+            60% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(0.7);
+            }
+            80% {
+                transform: translate(-50%, -50%) scale(1.1);
+            }
+            100% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+                box-shadow: 0 0 40px rgba(43, 45, 66, 0.6), 0 0 80px rgba(43, 45, 66, 0.3);
+            }
+        }
+
+        /* وهج النجم المتألق */
+        .star-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(43, 45, 66, 0.4) 0%, rgba(43, 45, 66, 0.15) 30%, transparent 70%);
+            animation: glowPulseAdvanced 3s ease-in-out infinite;
+            z-index: 5;
+            opacity: 0;
+            animation-delay: 2.5s;
+        }
+
+        .star-glow.show {
+            opacity: 1;
+        }
+
+        @keyframes glowPulseAdvanced {
+            0%, 100% {
+                transform: translate(-50%, -50%) scale(0.7);
+                opacity: 0.2;
+                box-shadow: 0 0 80px rgba(43, 45, 66, 0.2);
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.6);
+                opacity: 0.9;
+                box-shadow: 0 0 120px rgba(43, 45, 66, 0.5), 0 0 200px rgba(43, 45, 66, 0.2);
+            }
+        }
+
+        /* أشعة النجم المتألقة */
+        .star-rays {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 240px;
+            height: 240px;
+            animation: rotateRays 25s linear infinite;
+            z-index: 8;
+            opacity: 0;
+            animation-delay: 2.8s;
+        }
+
+        .star-rays.show {
+            opacity: 1;
+        }
+
+        @keyframes rotateRays {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .ray {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 120px;
+            background: linear-gradient(to top, transparent, rgba(200, 213, 224, 0.3), transparent);
+            transform-origin: bottom center;
+            border-radius: 2px;
+            animation: rayPulse 2s ease-in-out infinite;
+        }
+
+        .ray:nth-child(1) { transform: translate(-50%, -100%) rotate(0deg); animation-delay: 0s; }
+        .ray:nth-child(2) { transform: translate(-50%, -100%) rotate(24deg); animation-delay: 0.15s; }
+        .ray:nth-child(3) { transform: translate(-50%, -100%) rotate(48deg); animation-delay: 0.3s; }
+        .ray:nth-child(4) { transform: translate(-50%, -100%) rotate(72deg); animation-delay: 0.45s; }
+        .ray:nth-child(5) { transform: translate(-50%, -100%) rotate(96deg); animation-delay: 0.6s; }
+        .ray:nth-child(6) { transform: translate(-50%, -100%) rotate(120deg); animation-delay: 0.75s; }
+        .ray:nth-child(7) { transform: translate(-50%, -100%) rotate(144deg); animation-delay: 0.9s; }
+        .ray:nth-child(8) { transform: translate(-50%, -100%) rotate(168deg); animation-delay: 1.05s; }
+        .ray:nth-child(9) { transform: translate(-50%, -100%) rotate(192deg); animation-delay: 1.2s; }
+        .ray:nth-child(10) { transform: translate(-50%, -100%) rotate(216deg); animation-delay: 1.35s; }
+        .ray:nth-child(11) { transform: translate(-50%, -100%) rotate(240deg); animation-delay: 1.5s; }
+        .ray:nth-child(12) { transform: translate(-50%, -100%) rotate(264deg); animation-delay: 1.65s; }
+        .ray:nth-child(13) { transform: translate(-50%, -100%) rotate(288deg); animation-delay: 1.8s; }
+        .ray:nth-child(14) { transform: translate(-50%, -100%) rotate(312deg); animation-delay: 1.95s; }
+        .ray:nth-child(15) { transform: translate(-50%, -100%) rotate(336deg); animation-delay: 2.1s; }
+
+        @keyframes rayPulse {
+            0%, 100% {
+                opacity: 0.3;
+                height: 120px;
+            }
+            50% {
+                opacity: 1;
+                height: 140px;
+            }
+        }
+
+        /* الجسيمات المتطايرة من النجم */
+        .star-particles {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 320px;
+            height: 320px;
+            z-index: 6;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(200, 213, 224, 0.8), rgba(200, 213, 224, 0.1));
+            animation: particleFlyAdvanced 4s ease-in-out infinite;
+            opacity: 0;
+        }
+
+        .particle.size-s { width: 2px; height: 2px; }
+        .particle.size-m { width: 4px; height: 4px; }
+        .particle.size-l { width: 6px; height: 6px; }
+
+        .particle:nth-child(1) { top: 5%; left: 10%; --tx: 40px; --ty: -50px; --tx2: -30px; --ty2: 40px; --scale: 1.5; animation-delay: 0s; }
+        .particle:nth-child(2) { top: 8%; right: 15%; --tx: -40px; --ty: -45px; --tx2: 35px; --ty2: 35px; --scale: 1.8; animation-delay: 0.4s; }
+        .particle:nth-child(3) { bottom: 10%; left: 8%; --tx: 45px; --ty: 40px; --tx2: -35px; --ty2: -35px; --scale: 1.3; animation-delay: 0.8s; }
+        .particle:nth-child(4) { bottom: 5%; right: 12%; --tx: -45px; --ty: 35px; --tx2: 40px; --ty2: -30px; --scale: 1.7; animation-delay: 1.2s; }
+        .particle:nth-child(5) { top: 3%; left: 45%; --tx: 0px; --ty: -60px; --tx2: 0px; --ty2: 50px; --scale: 2.0; animation-delay: 1.6s; }
+        .particle:nth-child(6) { bottom: 3%; left: 45%; --tx: 0px; --ty: 60px; --tx2: 0px; --ty2: -50px; --scale: 1.9; animation-delay: 2.0s; }
+        .particle:nth-child(7) { top: 40%; left: 3%; --tx: -60px; --ty: 0px; --tx2: 50px; --ty2: 0px; --scale: 1.6; animation-delay: 2.4s; }
+        .particle:nth-child(8) { top: 40%; right: 3%; --tx: 60px; --ty: 0px; --tx2: -50px; --ty2: 0px; --scale: 1.4; animation-delay: 2.8s; }
+        .particle:nth-child(9) { top: 25%; left: 20%; --tx: 25px; --ty: -25px; --tx2: -20px; --ty2: 30px; --scale: 1.2; animation-delay: 0.2s; }
+        .particle:nth-child(10) { top: 25%; right: 20%; --tx: -25px; --ty: -25px; --tx2: 20px; --ty2: 30px; --scale: 1.5; animation-delay: 0.6s; }
+        .particle:nth-child(11) { bottom: 25%; left: 20%; --tx: 25px; --ty: 25px; --tx2: -20px; --ty2: -30px; --scale: 1.8; animation-delay: 1.0s; }
+        .particle:nth-child(12) { bottom: 25%; right: 20%; --tx: -25px; --ty: 25px; --tx2: 20px; --ty2: -30px; --scale: 1.3; animation-delay: 1.4s; }
+        .particle:nth-child(13) { top: 15%; left: 35%; --tx: 20px; --ty: -35px; --tx2: -15px; --ty2: 30px; --scale: 1.7; animation-delay: 1.8s; }
+        .particle:nth-child(14) { top: 15%; right: 35%; --tx: -20px; --ty: -35px; --tx2: 15px; --ty2: 30px; --scale: 1.4; animation-delay: 2.2s; }
+        .particle:nth-child(15) { bottom: 15%; left: 35%; --tx: 20px; --ty: 35px; --tx2: -15px; --ty2: -30px; --scale: 1.6; animation-delay: 2.6s; }
+        .particle:nth-child(16) { bottom: 15%; right: 35%; --tx: -20px; --ty: 35px; --tx2: 15px; --ty2: -30px; --scale: 1.9; animation-delay: 3.0s; }
+        .particle:nth-child(17) { top: 30%; left: 10%; --tx: 30px; --ty: -20px; --tx2: -25px; --ty2: 25px; --scale: 1.2; animation-delay: 0.3s; }
+        .particle:nth-child(18) { top: 30%; right: 10%; --tx: -30px; --ty: -20px; --tx2: 25px; --ty2: 25px; --scale: 1.8; animation-delay: 0.7s; }
+        .particle:nth-child(19) { bottom: 30%; left: 10%; --tx: 30px; --ty: 20px; --tx2: -25px; --ty2: -25px; --scale: 1.5; animation-delay: 1.1s; }
+        .particle:nth-child(20) { bottom: 30%; right: 10%; --tx: -30px; --ty: 20px; --tx2: 25px; --ty2: -25px; --scale: 1.3; animation-delay: 1.5s; }
+        .particle:nth-child(21) { top: 5%; left: 30%; --tx: 15px; --ty: -30px; --tx2: -10px; --ty2: 25px; --scale: 1.9; animation-delay: 0.9s; }
+        .particle:nth-child(22) { top: 5%; right: 30%; --tx: -15px; --ty: -30px; --tx2: 10px; --ty2: 25px; --scale: 1.4; animation-delay: 1.3s; }
+        .particle:nth-child(23) { bottom: 5%; left: 30%; --tx: 15px; --ty: 30px; --tx2: -10px; --ty2: -25px; --scale: 1.7; animation-delay: 1.7s; }
+        .particle:nth-child(24) { bottom: 5%; right: 30%; --tx: -15px; --ty: 30px; --tx2: 10px; --ty2: -25px; --scale: 1.6; animation-delay: 2.1s; }
+
+        @keyframes particleFlyAdvanced {
+            0%, 100% {
+                transform: translate(0, 0) scale(0.2);
+                opacity: 0;
+            }
+            15% {
+                opacity: 0.8;
+                transform: translate(0, 0) scale(1);
+            }
+            40% {
+                opacity: 1;
+                transform: translate(var(--tx), var(--ty)) scale(var(--scale));
+            }
+            70% {
+                opacity: 0.6;
+                transform: translate(var(--tx2), var(--ty2)) scale(0.8);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--tx2), var(--ty2)) scale(0.2);
+            }
+        }
+
+        /* ========================================
+           الشعار والنص
+           ======================================== */
+        .logo-container {
+            text-align: center;
+            z-index: 20;
+            margin-top: 5px;
+        }
+
+        .app-logo {
+            width: 70px;
+            height: 70px;
+            margin-bottom: 8px;
+            filter: drop-shadow(0 0 30px rgba(43, 45, 66, 0.5));
+            opacity: 0;
+            animation: logoFadeIn 1.5s ease-out 1s forwards;
+        }
+
+        @keyframes logoFadeIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.5) rotate(-10deg);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+            }
+        }
+
+        .app-title {
+            color: #F5F5F5;
+            font-size: 48px;
+            font-weight: 300;
+            letter-spacing: 8px;
+            margin: 0;
+            text-shadow: 0 0 40px rgba(43, 45, 66, 0.4);
+            font-family: 'Cairo', 'Segoe UI', sans-serif;
+            opacity: 0;
+            animation: titleFadeIn 1.5s ease-out 1.2s forwards;
+        }
+
+        @keyframes titleFadeIn {
+            0% {
+                opacity: 0;
+                transform: translateY(20px) scale(0.9);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .app-title span {
+            color: var(--accent-glow);
+            font-weight: 700;
+        }
+
+        .app-subtitle {
+            color: #9BA5AF;
+            font-size: 14px;
+            letter-spacing: 3px;
+            margin-top: 8px;
+            font-weight: 300;
+            opacity: 0;
+            animation: subtitleFadeIn 1.5s ease-out 1.5s forwards;
+        }
+
+        @keyframes subtitleFadeIn {
+            0% {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ========================================
+           شريط التحميل المتقدم
+           ======================================== */
+        .loading-section {
+            position: absolute;
+            bottom: 80px;
+            width: 440px;
+            text-align: center;
+            z-index: 20;
+            opacity: 0;
+            animation: loadingFadeIn 1.5s ease-out 0.8s forwards;
+        }
+
+        @keyframes loadingFadeIn {
+            0% {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .loading-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(200, 213, 224, 0.08);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 14px;
+            position: relative;
+        }
+
+        .loading-bar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(200, 213, 224, 0.08), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .loading-progress {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #2B2D42, #E8EDF2, #2B2D42);
+            background-size: 200% 100%;
+            border-radius: 4px;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 30px rgba(43, 45, 66, 0.4);
+            animation: progressGradient 2s ease infinite;
+            position: relative;
+            z-index: 1;
+        }
+
+        @keyframes progressGradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .loading-text-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .loading-text {
+            color: #9BA5AF;
+            font-size: 13px;
+            letter-spacing: 1px;
+            margin: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-percentage {
+            color: var(--accent-glow);
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .version-text {
+            color: #9BA5AF;
+            font-size: 11px;
+            letter-spacing: 2px;
+            margin-top: 10px;
+            opacity: 0.4;
+            font-weight: 300;
+        }
+
+        .support-text {
+            color: #9BA5AF;
+            font-size: 11px;
+            letter-spacing: 1px;
+            margin-top: 4px;
+            opacity: 0.3;
+        }
+
+        /* ========================================
+           حالة الترخيص
+           ======================================== */
+        .license-status {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            z-index: 20;
+            padding: 6px 14px;
+            background: rgba(28, 28, 30, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(200, 213, 224, 0.05);
+            font-size: 11px;
+            color: var(--text-secondary);
+            opacity: 0;
+            animation: fadeIn 1.5s ease-out 2s forwards;
+        }
+
+        .license-status.valid {
+            color: #4CAF50;
+            border-color: rgba(76, 175, 80, 0.2);
+        }
+
+        .license-status.invalid {
+            color: #ff6b6b;
+            border-color: rgba(255, 107, 107, 0.2);
+        }
+
+        .license-status.trial {
+            color: #FFC107;
+            border-color: rgba(255, 193, 7, 0.2);
+        }
+
+        @keyframes fadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        /* تأثير انفجار النجم عند اكتمال التحميل */
+        .explosion-particle {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(200, 213, 224, 0.9), rgba(43, 45, 66, 0.4));
+            pointer-events: none;
+            z-index: 15;
+            animation: explosionParticle 0.8s ease-out forwards;
+        }
+
+        @keyframes explosionParticle {
+            0% {
+                transform: translate(-50%, -50%) scale(0.5);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--tx), var(--ty)) scale(0);
+                opacity: 0;
+            }
+        }
+
+        /* ========================================
+           التجاوب مع الشاشات
+           ======================================== */
+        @media (max-width: 768px) {
+            .window-controls {
+                padding: 10px 15px;
+                gap: 8px;
+            }
+            
+            .window-controls button {
+                width: 30px;
+                height: 30px;
+                font-size: 12px;
+            }
+            
+            .sadeem-star-container {
+                width: 200px;
+                height: 200px;
+            }
+            
+            .star-core {
+                width: 35px;
+                height: 35px;
+            }
+            
+            .star-glow {
+                width: 110px;
+                height: 110px;
+            }
+            
+            .star-rays {
+                width: 170px;
+                height: 170px;
+            }
+            
+            .ray {
+                height: 85px;
+            }
+            
+            .app-title {
+                font-size: 32px;
+                letter-spacing: 5px;
+            }
+            
+            .loading-section {
+                width: 300px;
+                bottom: 60px;
+            }
+            
+            .app-logo {
+                width: 50px;
+                height: 50px;
+            }
+
+            .nebula-cloud.cloud-1 {
+                width: 160px;
+                height: 160px;
+            }
+            .nebula-cloud.cloud-2 {
+                width: 220px;
+                height: 220px;
+            }
+            .nebula-cloud.cloud-3 {
+                width: 280px;
+                height: 280px;
+            }
+            .nebula-cloud.cloud-4 {
+                width: 340px;
+                height: 340px;
+            }
+
+            .dust-ring.ring-1 {
+                width: 130px;
+                height: 130px;
+            }
+            .dust-ring.ring-2 {
+                width: 180px;
+                height: 180px;
+            }
+            .dust-ring.ring-3 {
+                width: 230px;
+                height: 230px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .sadeem-star-container {
+                width: 150px;
+                height: 150px;
+            }
+            
+            .star-core {
+                width: 28px;
+                height: 28px;
+            }
+            
+            .star-glow {
+                width: 80px;
+                height: 80px;
+            }
+            
+            .star-rays {
+                width: 130px;
+                height: 130px;
+            }
+            
+            .ray {
+                height: 65px;
+            }
+            
+            .app-title {
+                font-size: 24px;
+                letter-spacing: 3px;
+            }
+            
+            .app-subtitle {
+                font-size: 11px;
+                letter-spacing: 2px;
+            }
+            
+            .loading-section {
+                width: 240px;
+                bottom: 40px;
+            }
+
+            .license-status {
+                bottom: 15px;
+                right: 15px;
+                font-size: 9px;
+                padding: 4px 10px;
+            }
+
+            .nebula-cloud.cloud-1 {
+                width: 120px;
+                height: 120px;
+            }
+            .nebula-cloud.cloud-2 {
+                width: 170px;
+                height: 170px;
+            }
+            .nebula-cloud.cloud-3 {
+                width: 220px;
+                height: 220px;
+            }
+            .nebula-cloud.cloud-4 {
+                width: 270px;
+                height: 270px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ========================================
+         أزرار التحكم في النافذة
+         ======================================== -->
+    <div class="window-controls">
+        <button class="minimize-btn" id="minimizeBtn" title="تصغير">
+            <svg viewBox="0 0 12 12">
+                <rect x="0" y="5" width="12" height="2" fill="currentColor"/>
+            </svg>
+        </button>
+        <button class="maximize-btn" id="maximizeBtn" title="تكبير">
+            <svg viewBox="0 0 12 12">
+                <rect x="0" y="0" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+        </button>
+        <button class="close-btn" id="closeBtn" title="إغلاق">
+            <svg viewBox="0 0 12 12">
+                <line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- ========================================
+         الحاوية الرئيسية
+         ======================================== -->
+    <div class="splash-container">
+        <div class="nebula-background">
+            
+            <!-- حقل النجوم -->
+            <div class="star-field" id="starField"></div>
+
+            <!-- Canvas للجسيمات السديمية -->
+            <canvas id="nebulaCanvas"></canvas>
+
+            <!-- ========================================
+                 النجم السديمي - التكوين المتطور
+                 ======================================== -->
+            <div class="sadeem-star-container">
+                <!-- الطبقات الغازية - السديم -->
+                <div class="nebula-cloud cloud-1"></div>
+                <div class="nebula-cloud cloud-2"></div>
+                <div class="nebula-cloud cloud-3"></div>
+                <div class="nebula-cloud cloud-4"></div>
+
+                <!-- حلقات الغبار -->
+                <div class="dust-ring ring-1"></div>
+                <div class="dust-ring ring-2"></div>
+                <div class="dust-ring ring-3"></div>
+
+                <!-- الجسيمات المتطايرة -->
+                <div class="star-particles">
+                    <div class="particle size-s"></div>
+                    <div class="particle size-m"></div>
+                    <div class="particle size-l"></div>
+                    <div class="particle size-s"></div>
+                    <div class="particle size-m"></div>
+                    <div class="particle size-l"></div>
+                    <div class="particle size-s"></div>
+                    <div class="particle size-m"></div>
+                    <div class="particle size-l"></div>
+                    <div class="particle size-s"></div>
+                    <div class="particle size-m"></div>
+                    <div class="particle size-l"></div>
+                    <div class="particle size-s"></div>
+                    <div class="particle size-m"></div>
+                    <div class="particle size-l"></div>
+                    <div class="particle size-s"></div>
+                    <div class="particle size-m"></div>
+                    <div class="particle size-l"></div>
+                    <div class="particle size-s"></div>
+                    <div class="particle size-m"></div>
+                    <div class="particle size-l"></div>
+                    <div class="particle size-s"></div>
+                    <div class="particle size-m"></div>
+                    <div class="particle size-l"></div>
+                </div>
+
+                <!-- أشعة النجم المتألقة -->
+                <div class="star-rays" id="starRays">
+                    <div class="ray"></div>
+                    <div class="ray"></div>
+                    <div class="ray"></div>
+                    <div class="ray"></div>
+                    <div class="ray"></div>
+                    <div class="ray"></div>
+                    <div class="ray"></div>
+                    <div class="ray"></div>
+                    <div class="ray"></div>
+                    <div class="ray"></div>
+                    <div class="ray"></div>
+                    <div class="ray"></div>
+                    <div class="ray"></div>
+                    <div class="ray"></div>
+                    <div class="ray"></div>
+                </div>
+
+                <!-- وهج النجم المتألق -->
+                <div class="star-glow" id="starGlow"></div>
+
+                <!-- لب النجم المتشكل -->
+                <div class="star-core" id="starCore"></div>
+            </div>
+
+            <!-- ========================================
+                 الشعار والنص
+                 ======================================== -->
+            <div class="logo-container">
+                <img src="../../assets/logo.png" alt="سديم" class="app-logo" 
+                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'70\' height=\'70\'%3E%3Ccircle cx=\'35\' cy=\'35\' r=\'30\' fill=\'%232B2D42\'/%3E%3Ctext x=\'35\' y=\'42\' font-family=\'Arial\' font-size=\'28\' fill=\'%23E8EDF2\' text-anchor=\'middle\'%3ES%3C/text%3E%3C/svg%3E'">
+                <h1 class="app-title">س<span>ديم</span></h1>
+                <p class="app-subtitle">نظام إدارة المصانع المتكامل</p>
+            </div>
+
+            <!-- ========================================
+                 شريط التحميل المتقدم
+                 ======================================== -->
+            <div class="loading-section">
+                <div class="loading-bar">
+                    <div class="loading-progress" id="loadingProgress"></div>
+                </div>
+                <div class="loading-text-container">
+                    <p class="loading-text" id="loadingText">جاري تهيئة النظام...</p>
+                    <span class="loading-percentage" id="loadingPercentage">0%</span>
+                </div>
+                <p class="version-text">الإصدار 1.0.0</p>
+                <p class="support-text">الدعم الفني: 01554567596</p>
+            </div>
+
+            <!-- ========================================
+                 حالة الترخيص
+                 ======================================== -->
+            <div class="license-status" id="licenseStatus">⏳ جاري التحقق...</div>
+        </div>
+    </div>
+
+    <!-- ========================================
+         جافاسكريبت - التطبيق الكامل
+         ======================================== -->
+    <script>
+        /**
+         * ============================================================
+         *  شاشة الدخول - سديم
+         *  Sadeem Splash Screen with Advanced Nebula Animation
+         * ============================================================
+         */
+
+        class SplashController {
+            constructor() {
+                this.progress = 0;
+                this.isComplete = false;
+                this.isTransitioning = false;
+                this.loadingMessages = [
+                    { text: 'جاري تهيئة النظام...', progress: 5 },
+                    { text: 'تحميل قاعدة البيانات...', progress: 15 },
+                    { text: 'تهيئة الجداول الرئيسية...', progress: 25 },
+                    { text: 'فحص بيانات النظام...', progress: 35 },
+                    { text: 'تطبيق التحديثات الأمنية...', progress: 45 },
+                    { text: 'التحقق من التفعيل...', progress: 55 },
+                    { text: 'تحميل واجهة المستخدم...', progress: 70 },
+                    { text: 'تهيئة الإضافات...', progress: 80 },
+                    { text: 'تجهيز النظام النهائي...', progress: 90 },
+                    { text: 'اكتمال التحميل!', progress: 100 }
+                ];
+                this.currentMessageIndex = 0;
+                this.progressElement = document.getElementById('loadingProgress');
+                this.textElement = document.getElementById('loadingText');
+                this.percentageElement = document.getElementById('loadingPercentage');
+                this.starField = document.getElementById('starField');
+                this.licenseStatusElement = document.getElementById('licenseStatus');
+                this.starCore = document.getElementById('starCore');
+                this.starGlow = document.getElementById('starGlow');
+                this.starRays = document.getElementById('starRays');
+                this.canvas = document.getElementById('nebulaCanvas');
+                this.ctx = this.canvas?.getContext('2d');
+                this.particles = [];
+                this.animationFrame = null;
+                this.starAnimationComplete = false;
+                this.loadingComplete = false;
+                this.explosionParticles = [];
+                
+                this.setupWindowControls();
+                this.generateStars();
+                this.setupCanvas();
+                this.startLoading();
+                this.checkLicense();
+                this.animateNebulaParticles();
+                this.setupLicenseListener();
+            }
+
+            // ============================================================
+            //  أزرار التحكم في النافذة
+            // ============================================================
+            setupWindowControls() {
+                const minimizeBtn = document.getElementById('minimizeBtn');
+                const maximizeBtn = document.getElementById('maximizeBtn');
+                const closeBtn = document.getElementById('closeBtn');
+
+                if (minimizeBtn) {
+                    minimizeBtn.addEventListener('click', () => {
+                        if (window.electronAPI?.minimizeWindow) {
+                            window.electronAPI.minimizeWindow();
+                        }
+                    });
+                }
+
+                if (maximizeBtn) {
+                    maximizeBtn.addEventListener('click', () => {
+                        if (window.electronAPI?.maximizeWindow) {
+                            window.electronAPI.maximizeWindow();
+                        }
+                    });
+                }
+
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => {
+                        if (window.electronAPI?.closeWindow) {
+                            window.electronAPI.closeWindow();
+                        }
+                    });
+                }
+            }
+
+            // ============================================================
+            //  إنشاء النجوم في الخلفية
+            // ============================================================
+            generateStars() {
+                const starField = this.starField;
+                if (!starField) return;
+
+                const starsCount = 150;
+                for (let i = 0; i < starsCount; i++) {
+                    const star = document.createElement('div');
+                    const size = Math.random() < 0.6 ? 1 : (Math.random() < 0.7 ? 2 : 3);
+                    star.className = `star size-${size}`;
+                    star.style.left = Math.random() * 100 + '%';
+                    star.style.top = Math.random() * 100 + '%';
+                    star.style.setProperty('--duration', (Math.random() * 4 + 2) + 's');
+                    star.style.setProperty('--delay', (Math.random() * 4) + 's');
+                    starField.appendChild(star);
+                }
+            }
+
+            // ============================================================
+            //  إعداد Canvas للجسيمات السديمية
+            // ============================================================
+            setupCanvas() {
+                if (!this.canvas || !this.ctx) return;
+
+                const resizeCanvas = () => {
+                    this.canvas.width = window.innerWidth;
+                    this.canvas.height = window.innerHeight;
+                };
+
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+
+                // إنشاء الجسيمات
+                this.particles = [];
+                const particleCount = 80;
+                for (let i = 0; i < particleCount; i++) {
+                    this.particles.push({
+                        x: Math.random() * this.canvas.width,
+                        y: Math.random() * this.canvas.height,
+                        radius: Math.random() * 3 + 1,
+                        vx: (Math.random() - 0.5) * 0.5,
+                        vy: (Math.random() - 0.5) * 0.5,
+                        opacity: Math.random() * 0.5 + 0.1,
+                        color: `rgba(200, 213, 224, ${Math.random() * 0.3 + 0.1})`,
+                        pulse: Math.random() * Math.PI * 2
+                    });
+                }
+            }
+
+            // ============================================================
+            //  أنيميشن الجسيمات السديمية
+            // ============================================================
+            animateNebulaParticles() {
+                if (!this.ctx || !this.canvas) return;
+
+                const ctx = this.ctx;
+                const canvas = this.canvas;
+
+                const animate = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    // تحديث ورسم الجسيمات
+                    for (const particle of this.particles) {
+                        particle.x += particle.vx;
+                        particle.y += particle.vy;
+                        particle.pulse += 0.02;
+
+                        // ارتداد من الحواف
+                        if (particle.x < 0 || particle.x > canvas.width) particle.vx *= -1;
+                        if (particle.y < 0 || particle.y > canvas.height) particle.vy *= -1;
+
+                        const opacity = particle.opacity * (0.8 + 0.2 * Math.sin(particle.pulse));
+                        const radius = particle.radius * (1 + 0.2 * Math.sin(particle.pulse * 0.5));
+
+                        ctx.beginPath();
+                        ctx.arc(particle.x, particle.y, radius, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(200, 213, 224, ${opacity * 0.6})`;
+                        ctx.fill();
+
+                        // وهج خفيف
+                        const gradient = ctx.createRadialGradient(
+                            particle.x, particle.y, 0,
+                            particle.x, particle.y, radius * 3
+                        );
+                        gradient.addColorStop(0, `rgba(200, 213, 224, ${opacity * 0.1})`);
+                        gradient.addColorStop(1, 'rgba(200, 213, 224, 0)');
+                        ctx.fillStyle = gradient;
+                        ctx.beginPath();
+                        ctx.arc(particle.x, particle.y, radius * 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    // رسم وصلات بين الجسيمات القريبة
+                    for (let i = 0; i < this.particles.length; i++) {
+                        for (let j = i + 1; j < this.particles.length; j++) {
+                            const dx = this.particles[i].x - this.particles[j].x;
+                            const dy = this.particles[i].y - this.particles[j].y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+
+                            if (distance < 120) {
+                                const opacity = (1 - distance / 120) * 0.15;
+                                ctx.beginPath();
+                                ctx.moveTo(this.particles[i].x, this.particles[i].y);
+                                ctx.lineTo(this.particles[j].x, this.particles[j].y);
+                                ctx.strokeStyle = `rgba(200, 213, 224, ${opacity})`;
+                                ctx.lineWidth = 0.5;
+                                ctx.stroke();
+                            }
+                        }
+                    }
+
+                    // تأثير السديم المركزي
+                    const centerX = canvas.width / 2;
+                    const centerY = canvas.height / 2;
+                    const glow = ctx.createRadialGradient(
+                        centerX, centerY, 0,
+                        centerX, centerY, canvas.width * 0.4
+                    );
+                    glow.addColorStop(0, 'rgba(43, 45, 66, 0.08)');
+                    glow.addColorStop(0.5, 'rgba(43, 45, 66, 0.04)');
+                    glow.addColorStop(1, 'rgba(43, 45, 66, 0)');
+                    ctx.fillStyle = glow;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    this.animationFrame = requestAnimationFrame(animate);
+                };
+
+                animate();
+            }
+
+            // ============================================================
+            //  تشغيل شريط التحميل
+            // ============================================================
+            startLoading() {
+                const interval = setInterval(() => {
+                    if (this.isComplete) {
+                        clearInterval(interval);
+                        return;
+                    }
+
+                    const increment = Math.random() * 2.5 + 0.5;
+                    this.progress = Math.min(this.progress + increment, 100);
+                    this.updateMessage();
+                    this.updateUI();
+
+                    // تحديث شكل النجم مع التقدم
+                    this.updateStarFormation(this.progress);
+
+                    if (this.progress >= 100) {
+                        this.isComplete = true;
+                        this.loadingComplete = true;
+                        clearInterval(interval);
+                        this.onComplete();
+                    }
+                }, 50);
+            }
+
+            // ============================================================
+            //  تحديث الرسالة حسب التقدم
+            // ============================================================
+            updateMessage() {
+                let message = this.loadingMessages[0];
+                for (const msg of this.loadingMessages) {
+                    if (this.progress >= msg.progress) {
+                        message = msg;
+                    }
+                }
+
+                if (message.text !== this.textElement.textContent) {
+                    this.textElement.textContent = message.text;
+                    this.textElement.style.opacity = '0';
+                    setTimeout(() => {
+                        this.textElement.style.opacity = '1';
+                    }, 150);
+                }
+            }
+
+            // ============================================================
+            //  تحديث واجهة شريط التحميل
+            // ============================================================
+            updateUI() {
+                const progress = Math.min(this.progress, 100);
+                this.progressElement.style.width = progress + '%';
+                this.percentageElement.textContent = Math.floor(progress) + '%';
+            }
+
+            // ============================================================
+            //  تحديث تشكل النجم مع التقدم
+            // ============================================================
+            updateStarFormation(progress) {
+                // تحديث حجم لب النجم مع التقدم
+                if (this.starCore) {
+                    const scale = 0.1 + (progress / 100) * 0.9;
+                    this.starCore.style.transform = `translate(-50%, -50%) scale(${Math.min(scale, 1)})`;
+                    this.starCore.style.opacity = Math.min(progress / 40, 1);
+                }
+
+                // ظهور الأشعة عند 70%
+                if (this.starRays && progress > 70) {
+                    const opacity = Math.min((progress - 70) / 30, 1);
+                    this.starRays.style.opacity = opacity;
+                    if (opacity > 0) {
+                        this.starRays.classList.add('show');
+                    }
+                }
+
+                // ظهور الوهج عند 50%
+                if (this.starGlow && progress > 50) {
+                    const opacity = Math.min((progress - 50) / 50, 1);
+                    this.starGlow.style.opacity = opacity * 0.8;
+                    if (opacity > 0) {
+                        this.starGlow.classList.add('show');
+                    }
+                }
+            }
+
+            // ============================================================
+            //  تأثير الانفجار الناعم عند اكتمال التحميل
+            // ============================================================
+            createExplosionEffect() {
+                const container = document.querySelector('.sadeem-star-container');
+                if (!container) return;
+
+                // جسيمات الانفجار
+                for (let i = 0; i < 40; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'explosion-particle';
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = 60 + Math.random() * 140;
+                    const size = 2 + Math.random() * 6;
+                    
+                    const colors = ['rgba(232, 237, 242, 0.9)', 'rgba(43, 45, 66, 0.6)', 'rgba(200, 213, 224, 0.8)'];
+                    const color = colors[Math.floor(Math.random() * colors.length)];
+                    
+                    particle.style.cssText = `
+                        position: absolute;
+                        top: 50%;
+                        left: 50%;
+                        width: ${size}px;
+                        height: ${size}px;
+                        border-radius: 50%;
+                        background: ${color};
+                        pointer-events: none;
+                        z-index: 15;
+                        animation: explosionParticle 0.8s ease-out forwards;
+                        --tx: ${Math.cos(angle) * distance}px;
+                        --ty: ${Math.sin(angle) * distance}px;
+                        animation-delay: ${Math.random() * 0.2}s;
+                    `;
+                    container.appendChild(particle);
+                }
+
+                // وميض أخير
+                setTimeout(() => {
+                    const flash = document.createElement('div');
+                    flash.style.cssText = `
+                        position: absolute;
+                        top: 50%;
+                        left: 50%;
+                        width: 300px;
+                        height: 300px;
+                        transform: translate(-50%, -50%);
+                        background: radial-gradient(circle, rgba(232, 237, 242, 0.3), transparent 70%);
+                        border-radius: 50%;
+                        pointer-events: none;
+                        z-index: 14;
+                        animation: flashPulse 0.6s ease-out forwards;
+                    `;
+                    container.appendChild(flash);
+                }, 200);
+            }
+
+            // ============================================================
+            //  تأثير كتابة الاسم
+            // ============================================================
+            animateTyping() {
+                const title = document.querySelector('.app-title');
+                if (!title) return;
+                
+                const text = title.textContent;
+                title.textContent = '';
+                let index = 0;
+                
+                const typeInterval = setInterval(() => {
+                    if (index < text.length) {
+                        title.textContent += text[index];
+                        index++;
+                    } else {
+                        clearInterval(typeInterval);
+                        title.style.borderLeft = '2px solid #E8EDF2';
+                        title.style.paddingLeft = '5px';
+                    }
+                }, 80);
+            }
+
+            // ============================================================
+            //  التحقق من الترخيص
+            // ============================================================
+            async checkLicense() {
+                try {
+                    if (window.electronAPI?.validateLicense) {
+                        const result = await window.electronAPI.validateLicense();
+                        this.updateLicenseStatus(result);
+                    }
+                } catch (error) {
+                    console.error('خطأ في التحقق من الترخيص:', error);
+                    this.licenseStatusElement.textContent = '⚠️ خطأ في التحقق';
+                    this.licenseStatusElement.className = 'license-status invalid';
+                }
+            }
+
+            // ============================================================
+            //  تحديث حالة الترخيص في الواجهة
+            // ============================================================
+            updateLicenseStatus(status) {
+                const element = this.licenseStatusElement;
+                if (!element) return;
+
+                if (status.valid) {
+                    if (status.isTrial) {
+                        element.textContent = `⏳ تجريبي - متبقي ${status.daysRemaining || 0} أيام`;
+                        element.className = 'license-status trial';
+                    } else {
+                        element.textContent = '✅ مرخص بالكامل';
+                        element.className = 'license-status valid';
+                    }
+                } else if (status.isTrialExpired) {
+                    element.textContent = '⚠️ انتهت الفترة التجريبية - وضع القراءة فقط';
+                    element.className = 'license-status invalid';
+                } else {
+                    element.textContent = '🔒 غير مفعل - يرجى التفعيل';
+                    element.className = 'license-status invalid';
+                }
+            }
+
+            // ============================================================
+            //  الاستماع لتحديثات الترخيص من العملية الرئيسية
+            // ============================================================
+            setupLicenseListener() {
+                if (window.electronAPI?.on) {
+                    window.electronAPI.on('license-status', (status) => {
+                        this.updateLicenseStatus(status);
+                    });
+                }
+            }
+
+            // ============================================================
+            //  اكتمال التحميل
+            // ============================================================
+            onComplete() {
+                if (this.isTransitioning) return;
+                this.isTransitioning = true;
+
+                // تأثير الانفجار الناعم
+                this.createExplosionEffect();
+                
+                // تأثير كتابة الاسم
+                setTimeout(() => {
+                    this.animateTyping();
+                }, 300);
+
+                // التأكد من اكتمال تشكل النجم
+                setTimeout(() => {
+                    this.navigateToDashboard();
+                }, 1800);
+            }
+
+            // ============================================================
+            //  الانتقال إلى لوحة التحكم
+            // ============================================================
+            navigateToDashboard() {
+                if (window.electronAPI?.splashComplete) {
+                    window.electronAPI.splashComplete();
+                } else {
+                    window.location.href = '../dashboard/dashboard.html';
+                }
+            }
+
+            // ============================================================
+            //  تنظيف الموارد
+            // ============================================================
+            destroy() {
+                if (this.animationFrame) {
+                    cancelAnimationFrame(this.animationFrame);
+                    this.animationFrame = null;
+                }
+            }
+        }
+
+        // إضافة أنيميشن flashPulse
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes flashPulse {
+                0% {
+                    opacity: 1;
+                    transform: translate(-50%, -50%) scale(0.5);
+                }
+                100% {
+                    opacity: 0;
+                    transform: translate(-50%, -50%) scale(2);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // ============================================================
+        //  تشغيل شاشة الدخول عند تحميل الصفحة
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            const splash = new SplashController();
+            window.__splash = splash;
+        });
+
+        // ============================================================
+        //  تنظيف عند إغلاق الصفحة
+        // ============================================================
+        window.addEventListener('beforeunload', () => {
+            if (window.__splash) {
+                window.__splash.destroy();
+            }
+        });
+    </script>
+</body>
+</html>
