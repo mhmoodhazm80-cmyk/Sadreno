@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الرواتب والسلف - سديم</title>
+    <link rel="stylesheet" href="../../styles/global.css">
+    <style>
+        /* ========================================
+           أنميشن الرواتب
+           ======================================== */
+        @keyframes slideUpCards {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulseBorder {
+            0%, 100% {
+                border-color: rgba(43, 45, 66, 0.2);
+            }
+            50% {
+                border-color: rgba(200, 213, 224, 0.2);
+            }
+        }
+
+        @keyframes tabSlide {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeScale {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .payroll-container {
+            padding: 80px 30px 30px 30px;
+            height: 100vh;
+            overflow-y: auto;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .payroll-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+            animation: slideInDown 0.5s ease;
+        }
+
+        .payroll-title {
+            font-size: 28px;
+            font-weight: 300;
+            color: #F5F5F5;
+        }
+
+        .payroll-title span {
+            color: #C8D5E0;
+            background: linear-gradient(90deg, #C8D5E0, #E8EDF2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .payroll-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-export {
+            padding: 10px 20px;
+            background: transparent;
+            color: #9BA5AF;
+            border: 1px solid rgba(200, 213, 224, 0.15);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-export:hover:not(:disabled) {
+            border-color: #9BA5AF;
+            color: #F5F5F5;
+            transform: translateY(-2px);
+        }
+
+        .btn-export:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .payroll-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+            animation: slideUpCards 0.6s ease;
+        }
+
+        .summary-card {
+            background: rgba(28, 28, 30, 0.8);
+            border: 1px solid rgba(200, 213, 224, 0.08);
+            border-radius: 10px;
+            padding: 15px 20px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .summary-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #2B2D42, #E8EDF2);
+            opacity: 0.3;
+        }
+
+        .summary-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(200, 213, 224, 0.15);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .summary-card .icon {
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+
+        .summary-label {
+            color: #9BA5AF;
+            font-size: 12px;
+        }
+
+        .summary-value {
+            color: #F5F5F5;
+            font-size: 22px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            background: rgba(28, 28, 30, 0.5);
+            border-radius: 10px;
+            padding: 5px;
+            animation: slideInDown 0.5s ease 0.2s both;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 10px 24px;
+            background: transparent;
+            border: none;
+            color: #9BA5AF;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Cairo', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            position: relative;
+        }
+
+        .tab-btn::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #2B2D42, #E8EDF2);
+            transition: width 0.3s ease;
+        }
+
+        .tab-btn.active::before {
+            width: 50%;
+        }
+
+        .tab-btn.active {
+            background: rgba(43, 45, 66, 0.3);
+            color: #F5F5F5;
+        }
+
+        .tab-btn:hover:not(.active) {
+            background: rgba(43, 45, 66, 0.15);
+            color: #F5F5F5;
+        }
+
+        .tab-content {
+            display: none;
+            animation: tabSlide 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .payroll-table-container {
+            background: rgba(28, 28, 30, 0.8);
+            border-radius: 12px;
+            border: 1px solid rgba(200, 213, 224, 0.08);
+            overflow: hidden;
+            animation: fadeScale 0.5s ease 0.3s both;
+        }
+
+        .payroll-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .payroll-table th {
+            padding: 12px 15px;
+            text-align: right;
+            color: #9BA5AF;
+            font-weight: 600;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(200, 213, 224, 0.08);
+            background: rgba(0, 0, 0, 0.2);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .payroll-table td {
+            padding: 12px 15px;
+            color: #F5F5F5;
+            border-bottom: 1px solid rgba(200, 213, 224, 0.04);
+            font-size: 14px;
+        }
+
+        .payroll-table tbody tr {
+            transition: all 0.3s ease;
+        }
+
+        .payroll-table tbody tr:hover {
+            background: rgba(43, 45, 66, 0.1);
+        }
+
+        .btn-pay {
+            padding: 6px 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Cairo', sans-serif;
+            font-size: 12px;
+        }
+
+        .btn-pay:hover:not(:disabled) {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+
+        .btn-pay:disabled {
+            background: #9BA5AF;
+            cursor: not-allowed;
+        }
+
+        .btn-calculate {
+            padding: 10px 24px;
+            background: #2B2D42;
+            color: #F5F5F5;
+            border: 1px solid #C8D5E0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Cairo', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .btn-calculate:hover:not(:disabled) {
+            background: #E8EDF2;
+            color: #0A0A0A;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(43, 45, 66, 0.3);
+        }
+
+        .btn-calculate:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .period-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .period-input {
+            padding: 8px 12px;
+            background: rgba(28, 28, 30, 0.8);
+            border: 1px solid rgba(200, 213, 224, 0.15);
+            border-radius: 6px;
+            color: #F5F5F5;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .period-input:focus {
+            outline: none;
+            border-color: #2B2D42;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.active {
+            background: rgba(76, 175, 80, 0.15);
+            color: #4CAF50;
+        }
+
+        .status-badge.pending {
+            background: rgba(255, 193, 7, 0.15);
+            color: #ffc107;
+        }
+
+        .status-badge.completed {
+            background: rgba(33, 150, 243, 0.15);
+            color: #2196F3;
+        }
+
+        .status-badge.danger {
+            background: rgba(255, 107, 107, 0.15);
+            color: #ff6b6b;
+        }
+
+        /* ========================================
+           التجاوب مع الشاشات
+           ======================================== */
+        @media (max-width: 768px) {
+            .payroll-container {
+                padding: 70px 15px 15px 15px;
+            }
+
+            .payroll-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .period-selector {
+                flex-wrap: wrap;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+            }
+
+            .tab-btn {
+                flex: 1;
+                text-align: center;
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+
+            .payroll-table {
+                font-size: 12px;
+            }
+
+            .payroll-table th,
+            .payroll-table td {
+                padding: 8px 10px;
+            }
+
+            .payroll-summary {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .payroll-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .summary-value {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="payroll-container">
+        <div class="payroll-header">
+            <h1 class="payroll-title">الرواتب <span>والسلف</span></h1>
+            <div class="payroll-actions">
+                <button class="btn-export" id="exportBtn">📊 تصدير</button>
+            </div>
+        </div>
+
+        <div class="period-selector" style="margin-bottom: 20px;">
+            <input type="date" class="period-input" id="periodStart">
+            <span style="color: #9BA5AF;">إلى</span>
+            <input type="date" class="period-input" id="periodEnd">
+            <button class="btn-calculate" id="calculateBtn">📊 حساب الرواتب</button>
+        </div>
+
+        <div class="payroll-summary" id="payrollSummary">
+            <div class="summary-card">
+                <div class="icon">💰</div>
+                <div class="summary-label">إجمالي الرواتب</div>
+                <div class="summary-value" id="totalPayroll">0 ج.م</div>
+            </div>
+            <div class="summary-card">
+                <div class="icon">💳</div>
+                <div class="summary-label">إجمالي السلف</div>
+                <div class="summary-value" id="totalAdvances">0 ج.م</div>
+            </div>
+            <div class="summary-card">
+                <div class="icon">📊</div>
+                <div class="summary-label">صافي المستحق</div>
+                <div class="summary-value" id="netPayable">0 ج.م</div>
+            </div>
+            <div class="summary-card">
+                <div class="icon">✅</div>
+                <div class="summary-label">الرواتب المسددة</div>
+                <div class="summary-value" id="paidPayroll">0 ج.م</div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="payroll">📋 الرواتب</button>
+            <button class="tab-btn" data-tab="advances">💰 السلف</button>
+            <button class="tab-btn" data-tab="deductions">📉 الخصومات</button>
+            <button class="tab-btn" data-tab="loans">🏦 القروض</button>
+        </div>
+
+        <div id="payrollTab" class="tab-content active">
+            <div class="payroll-table-container">
+                <table class="payroll-table">
+                    <thead>
+                        <tr>
+                            <th>العامل</th>
+                            <th>الفترة</th>
+                            <th>إجمالي الساعات</th>
+                            <th>القطع المنتجة</th>
+                            <th>الراتب الأساسي</th>
+                            <th>السلف</th>
+                            <th>الخصومات</th>
+                            <th>الصافي</th>
+                            <th>الحالة</th>
+                            <th>الإجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payrollTableBody">
+                        <!-- سيتم ملء البيانات بواسطة JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="advancesTab" class="tab-content">
+            <div class="payroll-table-container">
+                <table class="payroll-table">
+                    <thead>
+                        <tr>
+                            <th>العامل</th>
+                            <th>المبلغ</th>
+                            <th>التاريخ</th>
+                            <th>الوصف</th>
+                            <th>الحالة</th>
+                            <th>الإجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody id="advancesTableBody">
+                        <!-- سيتم ملء البيانات بواسطة JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="deductionsTab" class="tab-content">
+            <div class="payroll-table-container">
+                <table class="payroll-table">
+                    <thead>
+                        <tr>
+                            <th>العامل</th>
+                            <th>المبلغ</th>
+                            <th>التاريخ</th>
+                            <th>السبب</th>
+                            <th>الحالة</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deductionsTableBody">
+                        <!-- سيتم ملء البيانات بواسطة JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="loansTab" class="tab-content">
+            <div class="payroll-table-container">
+                <table class="payroll-table">
+                    <thead>
+                        <tr>
+                            <th>العامل</th>
+                            <th>المبلغ</th>
+                            <th>التاريخ</th>
+                            <th>المتبقي</th>
+                            <th>نسبة الفائدة</th>
+                            <th>الحالة</th>
+                            <th>الإجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody id="loansTableBody">
+                        <!-- سيتم ملء البيانات بواسطة JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="./payroll.js"></script>
+</body>
+</html>
