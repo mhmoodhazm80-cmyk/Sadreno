@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة العمال - سديم</title>
+    <link rel="stylesheet" href="../../styles/global.css">
+    <style>
+        /* ========================================
+           أنميشن إدارة العمال
+           ======================================== */
+        @keyframes slideInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeScale {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes shimmerRow {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        @keyframes borderGlow {
+            0%, 100% {
+                border-color: rgba(43, 45, 66, 0.3);
+            }
+            50% {
+                border-color: rgba(200, 213, 224, 0.3);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .workers-container {
+            padding: 80px 30px 30px 30px;
+            height: 100vh;
+            overflow-y: auto;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .workers-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+            animation: slideInDown 0.5s ease;
+        }
+
+        .workers-title {
+            font-size: 28px;
+            font-weight: 300;
+            color: #F5F5F5;
+        }
+
+        .workers-title span {
+            color: #C8D5E0;
+            background: linear-gradient(90deg, #C8D5E0, #E8EDF2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .workers-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-add {
+            background: #2B2D42;
+            color: #F5F5F5;
+            border: 1px solid #C8D5E0;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-add::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn-add:hover::before {
+            left: 100%;
+        }
+
+        .btn-add:hover:not(:disabled) {
+            background: #E8EDF2;
+            color: #0A0A0A;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(43, 45, 66, 0.3);
+        }
+
+        .btn-add:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn-import {
+            background: transparent;
+            color: #9BA5AF;
+            border: 1px solid rgba(200, 213, 224, 0.15);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-import:hover:not(:disabled) {
+            border-color: #9BA5AF;
+            color: #F5F5F5;
+            transform: translateY(-2px);
+        }
+
+        .btn-import:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            animation: slideInDown 0.5s ease 0.2s both;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 10px 15px;
+            background: rgba(28, 28, 30, 0.8);
+            border: 1px solid rgba(200, 213, 224, 0.15);
+            border-radius: 8px;
+            color: #F5F5F5;
+            font-size: 14px;
+            min-width: 200px;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #2B2D42;
+            box-shadow: 0 0 0 3px rgba(43, 45, 66, 0.15);
+        }
+
+        .search-input::placeholder {
+            color: #9BA5AF;
+        }
+
+        .filter-select {
+            padding: 10px 15px;
+            background: rgba(28, 28, 30, 0.8);
+            border: 1px solid rgba(200, 213, 224, 0.15);
+            border-radius: 8px;
+            color: #F5F5F5;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: #2B2D42;
+        }
+
+        .workers-table-container {
+            background: rgba(28, 28, 30, 0.8);
+            border-radius: 12px;
+            border: 1px solid rgba(200, 213, 224, 0.08);
+            overflow: hidden;
+            animation: fadeScale 0.5s ease 0.3s both;
+        }
+
+        .workers-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .workers-table th {
+            padding: 15px;
+            text-align: right;
+            color: #9BA5AF;
+            font-weight: 600;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(200, 213, 224, 0.08);
+            background: rgba(0, 0, 0, 0.2);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .workers-table td {
+            padding: 15px;
+            color: #F5F5F5;
+            border-bottom: 1px solid rgba(200, 213, 224, 0.04);
+            font-size: 14px;
+        }
+
+        .workers-table tbody tr {
+            transition: all 0.3s ease;
+            animation: slideInRight 0.3s ease forwards;
+            opacity: 0;
+        }
+
+        .workers-table tbody tr:nth-child(1) { animation-delay: 0.05s; }
+        .workers-table tbody tr:nth-child(2) { animation-delay: 0.1s; }
+        .workers-table tbody tr:nth-child(3) { animation-delay: 0.15s; }
+        .workers-table tbody tr:nth-child(4) { animation-delay: 0.2s; }
+        .workers-table tbody tr:nth-child(5) { animation-delay: 0.25s; }
+        .workers-table tbody tr:nth-child(6) { animation-delay: 0.3s; }
+        .workers-table tbody tr:nth-child(7) { animation-delay: 0.35s; }
+        .workers-table tbody tr:nth-child(8) { animation-delay: 0.4s; }
+
+        .workers-table tbody tr:hover {
+            background: rgba(43, 45, 66, 0.15);
+            transform: scale(1.01);
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.active {
+            background: rgba(76, 175, 80, 0.15);
+            color: #4CAF50;
+        }
+
+        .status-badge.inactive {
+            background: rgba(255, 107, 107, 0.15);
+            color: #ff6b6b;
+        }
+
+        .status-badge.on_leave {
+            background: rgba(255, 193, 7, 0.15);
+            color: #ffc107;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-action {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-action.edit {
+            background: rgba(43, 45, 66, 0.3);
+            color: #E8EDF2;
+        }
+
+        .btn-action.edit:hover:not(:disabled) {
+            background: rgba(43, 45, 66, 0.6);
+            transform: scale(1.05);
+        }
+
+        .btn-action.delete {
+            background: rgba(255, 107, 107, 0.15);
+            color: #ff6b6b;
+        }
+
+        .btn-action.delete:hover:not(:disabled) {
+            background: rgba(255, 107, 107, 0.3);
+            transform: scale(1.05);
+        }
+
+        .btn-action.attendance {
+            background: rgba(33, 150, 243, 0.15);
+            color: #2196F3;
+        }
+
+        .btn-action.attendance:hover:not(:disabled) {
+            background: rgba(33, 150, 243, 0.3);
+            transform: scale(1.05);
+        }
+
+        .btn-action:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* ========================================
+           مودال الإضافة والتعديل
+           ======================================== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1C1C1E;
+            border-radius: 16px;
+            padding: 30px;
+            width: 90%;
+            max-width: 650px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid rgba(200, 213, 224, 0.08);
+            animation: slideUp 0.3s ease;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            color: #F5F5F5;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #9BA5AF;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            color: #F5F5F5;
+            background: rgba(200, 213, 224, 0.1);
+            transform: rotate(90deg);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            color: #9BA5AF;
+            font-size: 14px;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .form-label .required {
+            color: #ff6b6b;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 15px;
+            background: rgba(10, 10, 10, 0.6);
+            border: 1px solid rgba(200, 213, 224, 0.15);
+            border-radius: 8px;
+            color: #F5F5F5;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #2B2D42;
+            box-shadow: 0 0 0 3px rgba(43, 45, 66, 0.15);
+        }
+
+        .form-input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 10px 15px;
+            background: rgba(10, 10, 10, 0.6);
+            border: 1px solid rgba(200, 213, 224, 0.15);
+            border-radius: 8px;
+            color: #F5F5F5;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: #2B2D42;
+        }
+
+        .form-select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(200, 213, 224, 0.08);
+        }
+
+        .btn-submit {
+            padding: 10px 30px;
+            background: #2B2D42;
+            color: #F5F5F5;
+            border: 1px solid #C8D5E0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            background: #E8EDF2;
+            color: #0A0A0A;
+            transform: translateY(-2px);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-cancel {
+            padding: 10px 30px;
+            background: transparent;
+            color: #9BA5AF;
+            border: 1px solid rgba(200, 213, 224, 0.15);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-cancel:hover {
+            border-color: #9BA5AF;
+            color: #F5F5F5;
+        }
+
+        /* ========================================
+           مودال الحضور
+           ======================================== */
+        .attendance-modal .form-group {
+            margin-bottom: 15px;
+        }
+
+        .attendance-modal .form-row {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        /* ========================================
+           Pagination
+           ======================================== */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 0;
+            border-top: 1px solid rgba(200, 213, 224, 0.05);
+            margin-top: 10px;
+        }
+
+        .pagination button {
+            padding: 6px 14px;
+            background: rgba(28, 28, 30, 0.6);
+            border: 1px solid rgba(200, 213, 224, 0.1);
+            border-radius: 6px;
+            color: #9BA5AF;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: rgba(43, 45, 66, 0.3);
+            color: #F5F5F5;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .pagination .page-info {
+            color: #9BA5AF;
+            font-size: 14px;
+        }
+
+        /* ========================================
+           التجاوب مع الشاشات
+           ======================================== */
+        @media (max-width: 768px) {
+            .workers-container {
+                padding: 70px 15px 15px 15px;
+            }
+
+            .workers-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .workers-actions {
+                justify-content: stretch;
+            }
+
+            .search-bar {
+                flex-direction: column;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .workers-table {
+                font-size: 12px;
+            }
+
+            .workers-table th,
+            .workers-table td {
+                padding: 10px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .modal-content {
+                padding: 20px;
+                width: 95%;
+            }
+
+            .attendance-modal .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .workers-table {
+                font-size: 11px;
+            }
+
+            .workers-table th,
+            .workers-table td {
+                padding: 8px;
+            }
+
+            .btn-action {
+                padding: 2px 8px;
+                font-size: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="workers-container">
+        <div class="workers-header">
+            <h1 class="workers-title">إدارة <span>العمال</span></h1>
+            <div class="workers-actions">
+                <button class="btn-import" id="importBtn" title="استيراد عمال من Excel">📥 استيراد</button>
+                <button class="btn-add" id="addWorkerBtn">
+                    <span>+</span> إضافة عامل
+                </button>
+            </div>
+        </div>
+
+        <div class="search-bar">
+            <input type="text" class="search-input" id="searchInput" placeholder="🔍 بحث عن عامل...">
+            <select class="filter-select" id="filterSelect">
+                <option value="all">جميع العمال</option>
+                <option value="active">نشط</option>
+                <option value="inactive">غير نشط</option>
+                <option value="on_leave">في إجازة</option>
+            </select>
+        </div>
+
+        <div class="workers-table-container">
+            <table class="workers-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>الاسم</th>
+                        <th>الوظيفة</th>
+                        <th>نظام الأجر</th>
+                        <th>السعر</th>
+                        <th>الهاتف</th>
+                        <th>الحالة</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="workersTableBody">
+                    <!-- سيتم ملء البيانات بواسطة JavaScript -->
+                </tbody>
+            </table>
+            <div class="pagination" id="pagination">
+                <button id="prevPage" disabled>السابق</button>
+                <span class="page-info" id="pageInfo">الصفحة 1</span>
+                <button id="nextPage">التالي</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Add/Edit Worker -->
+    <div class="modal-overlay" id="workerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">إضافة عامل جديد</h2>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <form id="workerForm">
+                <input type="hidden" id="workerId">
+                
+                <div class="form-group">
+                    <label class="form-label">الاسم <span class="required">*</span></label>
+                    <input type="text" class="form-input" id="workerName" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">الوظيفة</label>
+                    <input type="text" class="form-input" id="workerPosition">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">نظام الأجر</label>
+                        <select class="form-select" id="salaryType">
+                            <option value="hourly">ساعي</option>
+                            <option value="daily">يومي</option>
+                            <option value="monthly">شهري</option>
+                            <option value="piece">بالقطعة</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">السعر</label>
+                        <input type="number" class="form-input" id="salaryRate" step="0.01">
+                    </div>
+                </div>
+
+                <div class="form-group" id="pieceRateGroup" style="display: none;">
+                    <label class="form-label">سعر القطعة (للأجر بالقطعة)</label>
+                    <input type="number" class="form-input" id="pieceRate" step="0.01">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">الهاتف</label>
+                        <input type="tel" class="form-input" id="workerPhone">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">الرقم القومي</label>
+                        <input type="text" class="form-input" id="nationalId">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">العنوان</label>
+                    <input type="text" class="form-input" id="workerAddress">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">تاريخ التعيين</label>
+                        <input type="date" class="form-input" id="hireDate">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">الحالة</label>
+                        <select class="form-select" id="workerStatus">
+                            <option value="1">نشط</option>
+                            <option value="0">غير نشط</option>
+                            <option value="2">في إجازة</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" id="cancelBtn">إلغاء</button>
+                    <button type="submit" class="btn-submit" id="submitBtn">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Attendance -->
+    <div class="modal-overlay attendance-modal" id="attendanceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="attendanceTitle">تسجيل الحضور</h2>
+                <button class="modal-close" id="attendanceClose">&times;</button>
+            </div>
+            <form id="attendanceForm">
+                <input type="hidden" id="attendanceWorkerId">
+                
+                <div class="form-group">
+                    <label class="form-label">العامل</label>
+                    <input type="text" class="form-input" id="attendanceWorkerName" disabled>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">التاريخ</label>
+                        <input type="date" class="form-input" id="attendanceDate">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">الحالة</label>
+                        <select class="form-select" id="attendanceStatus">
+                            <option value="present">حاضر</option>
+                            <option value="absent">غائب</option>
+                            <option value="leave">إجازة</option>
+                            <option value="holiday">عطلة</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">ساعات العمل</label>
+                        <input type="number" class="form-input" id="attendanceHours" step="0.5" value="8">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">ساعات إضافية</label>
+                        <input type="number" class="form-input" id="attendanceOvertime" step="0.5" value="0">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">عدد القطع المنتجة</label>
+                        <input type="number" class="form-input" id="attendancePieces" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">القطع التالفة</label>
+                        <input type="number" class="form-input" id="attendanceDefective" value="0">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">ملاحظات</label>
+                    <input type="text" class="form-input" id="attendanceNotes" placeholder="أي ملاحظات إضافية...">
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" id="attendanceCancel">إلغاء</button>
+                    <button type="submit" class="btn-submit">حفظ الحضور</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="./workers.js"></script>
+</body>
+</html>
