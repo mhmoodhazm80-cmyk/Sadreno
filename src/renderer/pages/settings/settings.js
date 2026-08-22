@@ -29,13 +29,17 @@ class SettingsController {
             this.readOnlyMode = await window.electronAPI.getReadOnly();
             
             if (this.readOnlyMode) {
-                document.querySelectorAll('.settings-input, .settings-select, .settings-toggle').forEach(el => {
+                // تعطيل الإعدادات العامة فقط، مع ترك حقول التفعيل نشطة
+                document.querySelectorAll('.settings-input:not(#licenseKey), .settings-select:not(#licenseKey)').forEach(el => {
                     el.disabled = true;
                 });
                 document.getElementById('saveGeneralSettings').disabled = true;
-                document.getElementById('activateLicense').disabled = true;
                 document.getElementById('createBackupBtn').disabled = true;
                 document.getElementById('restoreBackupBtn').disabled = true;
+                
+                // نترك حقول التفعيل نشطة
+                document.getElementById('licenseKey').disabled = false;
+                document.getElementById('activateLicense').disabled = false;
             }
         } catch (error) {
             console.error('خطأ في التحقق من وضع القراءة فقط:', error);
@@ -81,7 +85,6 @@ class SettingsController {
             document.getElementById('backupInterval').value = this.settings.backup_interval || '24';
             document.getElementById('backupRetention').value = this.settings.backup_retention || '30';
 
-            // إعدادات متقدمة
             const auditLog = this.settings.audit_log !== 'false';
             const auditToggle = document.getElementById('auditLog');
             if (auditLog) {
@@ -111,7 +114,6 @@ class SettingsController {
     }
 
     setupEventListeners() {
-        // التبديل بين اللوحات
         document.querySelectorAll('.settings-sidebar-item').forEach(item => {
             item.addEventListener('click', () => {
                 document.querySelectorAll('.settings-sidebar-item').forEach(i => i.classList.remove('active'));
@@ -123,7 +125,6 @@ class SettingsController {
             });
         });
 
-        // تبديل التفعيل التلقائي
         const toggles = document.querySelectorAll('.settings-toggle');
         toggles.forEach(toggle => {
             if (!this.readOnlyMode) {
@@ -135,21 +136,16 @@ class SettingsController {
             }
         });
 
-        // حفظ الإعدادات العامة
         document.getElementById('saveGeneralSettings').addEventListener('click', async () => {
             if (!this.readOnlyMode) {
                 await this.saveGeneralSettings();
             }
         });
 
-        // تفعيل الترخيص
         document.getElementById('activateLicense').addEventListener('click', async () => {
-            if (!this.readOnlyMode) {
-                await this.activateLicense();
-            }
+            await this.activateLicense();
         });
 
-        // النسخ الاحتياطي
         document.getElementById('createBackupBtn').addEventListener('click', async () => {
             if (!this.readOnlyMode) {
                 await this.createBackup();
@@ -162,14 +158,12 @@ class SettingsController {
             }
         });
 
-        // نسخ HWID
         document.getElementById('copyHwidBtn').addEventListener('click', () => {
             const hwid = document.getElementById('hwidDisplay').textContent;
             if (hwid && hwid !== 'غير متاح' && hwid !== 'جاري التحميل...') {
                 navigator.clipboard.writeText(hwid).then(() => {
                     this.showToast('✅ تم نسخ معرف الجهاز');
                 }).catch(() => {
-                    // طريقة بديلة
                     const textarea = document.createElement('textarea');
                     textarea.value = hwid;
                     document.body.appendChild(textarea);
@@ -181,14 +175,12 @@ class SettingsController {
             }
         });
 
-        // إدخال كود التفعيل - دعم Enter
         document.getElementById('licenseKey').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !this.readOnlyMode) {
+            if (e.key === 'Enter') {
                 this.activateLicense();
             }
         });
 
-        // الأزرار المتقدمة
         document.getElementById('clearCacheBtn').addEventListener('click', async () => {
             if (confirm('⚠️ هل أنت متأكد من مسح الكاش؟ قد يؤثر ذلك على أداء التطبيق.')) {
                 await this.clearCache();
@@ -291,11 +283,6 @@ class SettingsController {
 
     async activateLicense() {
         try {
-            if (this.readOnlyMode) {
-                this.showToast('⚠️ وضع القراءة فقط - لا يمكن تفعيل الترخيص', 'error');
-                return;
-            }
-
             const licenseKey = document.getElementById('licenseKey').value.trim();
             
             if (!licenseKey) {
@@ -304,28 +291,43 @@ class SettingsController {
                 return;
             }
 
+            const btn = document.getElementById('activateLicense');
+            const originalText = btn.textContent;
+            btn.textContent = '⏳ جاري التفعيل...';
+            btn.disabled = true;
+
             const result = await window.electronAPI.activateLicense(licenseKey);
             
             if (result.success) {
                 this.showToast(`✅ ${result.message}`);
                 await this.loadLicenseStatus();
                 document.getElementById('licenseKey').value = '';
+                
                 this.readOnlyMode = await window.electronAPI.getReadOnly();
+                
                 if (!this.readOnlyMode) {
-                    document.querySelectorAll('.settings-input, .settings-select, .settings-toggle').forEach(el => {
+                    document.querySelectorAll('.settings-input, .settings-select').forEach(el => {
                         el.disabled = false;
                     });
                     document.getElementById('saveGeneralSettings').disabled = false;
-                    document.getElementById('activateLicense').disabled = false;
                     document.getElementById('createBackupBtn').disabled = false;
                     document.getElementById('restoreBackupBtn').disabled = false;
+                }
+                
+                if (window.__navigation) {
+                    window.__navigation.updateReadOnlyStatus(this.readOnlyMode);
                 }
             } else {
                 this.showToast(`❌ فشل التفعيل: ${result.message}`, 'error');
             }
+            
+            btn.textContent = originalText;
+            btn.disabled = false;
         } catch (error) {
             console.error('خطأ في تفعيل الترخيص:', error);
             this.showToast('❌ حدث خطأ في عملية التفعيل', 'error');
+            document.getElementById('activateLicense').textContent = '🚀 تفعيل';
+            document.getElementById('activateLicense').disabled = false;
         }
     }
 
@@ -401,7 +403,6 @@ class SettingsController {
 
     async clearCache() {
         try {
-            // حذف الكاش من localStorage
             localStorage.clear();
             this.showToast('✅ تم مسح الكاش بنجاح');
             setTimeout(() => {
@@ -415,7 +416,6 @@ class SettingsController {
 
     async resetSettings() {
         try {
-            // حذف جميع الإعدادات وإعادة تعيينها
             await window.electronAPI.dbRun('DELETE FROM settings');
             await window.electronAPI.dbRun(`
                 INSERT OR IGNORE INTO settings (key, value, category) VALUES 
@@ -489,10 +489,8 @@ class SettingsController {
     }
 }
 
-// تشغيل الإعدادات
 document.addEventListener('DOMContentLoaded', async () => {
     const settings = new SettingsController();
     await settings.initialize();
-    
     window.__settings = settings;
 });
