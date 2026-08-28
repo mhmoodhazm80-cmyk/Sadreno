@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { DatabaseService } = require('../services/database.service');
 const { LicenseService } = require('../services/license.service');
 const { SecurityService } = require('../services/security.service');
+const { AdvancedEncryptionService } = require('../services/advanced-encryption.service');
 
 class SadeemApplication {
     constructor() {
@@ -12,6 +13,7 @@ class SadeemApplication {
         this.databaseService = null;
         this.licenseService = null;
         this.securityService = null;
+        this.encryptionService = null;
         this.isReady = false;
         this.splashScreen = null;
         this.appLock = null;
@@ -24,6 +26,7 @@ class SadeemApplication {
         this.navigationHistory = [];
         this.backupInterval = null;
         this.auditLogEnabled = true;
+        this.workspaceData = null;
     }
 
     // ========================================
@@ -240,7 +243,6 @@ class SadeemApplication {
             const writeStream = fs.createWriteStream(result.filePath);
             doc.pipe(writeStream);
 
-            // تحميل خط عربي
             try {
                 const fontPath = path.join(__dirname, '../assets/fonts/NotoSansArabic-Regular.ttf');
                 if (await fs.pathExists(fontPath)) {
@@ -253,7 +255,6 @@ class SadeemApplication {
                 doc.font('Helvetica');
             }
 
-            // الترويسة
             doc.fontSize(20)
                .text('سديم - نظام إدارة المصانع', { align: 'center' })
                .moveDown();
@@ -418,6 +419,10 @@ class SadeemApplication {
                 return;
             }
 
+            console.log('🔐 تهيئة نظام التشفير المتقدم...');
+            this.encryptionService = new AdvancedEncryptionService();
+            await this.encryptionService.initialize();
+
             console.log('🔐 تهيئة الخدمات الأمنية...');
             this.securityService = new SecurityService();
             await this.securityService.initialize();
@@ -487,41 +492,46 @@ class SadeemApplication {
     // إعدادات الاختصارات العالمية
     // ========================================
     setupGlobalShortcuts() {
-        // Ctrl+Shift+D -> Dashboard
         globalShortcut.register('CommandOrControl+Shift+D', () => {
             this.navigateTo('dashboard');
         });
 
-        // Ctrl+Shift+W -> Workers
         globalShortcut.register('CommandOrControl+Shift+W', () => {
             this.navigateTo('workers');
         });
 
-        // Ctrl+Shift+P -> Payroll
         globalShortcut.register('CommandOrControl+Shift+P', () => {
             this.navigateTo('payroll');
         });
 
-        // Ctrl+Shift+E -> Expenses
         globalShortcut.register('CommandOrControl+Shift+E', () => {
             this.navigateTo('expenses');
         });
 
-        // Ctrl+Shift+S -> Settings
+        globalShortcut.register('CommandOrControl+Shift+A', () => {
+            this.navigateTo('workspace');
+        });
+
+        globalShortcut.register('CommandOrControl+Shift+T', () => {
+            this.navigateTo('tutorial');
+        });
+
         globalShortcut.register('CommandOrControl+Shift+S', () => {
             this.navigateTo('settings');
         });
 
-        // F5 -> Refresh
         globalShortcut.register('F5', () => {
             if (this.mainWindow && !this.mainWindow.isDestroyed()) {
                 this.mainWindow.reload();
             }
         });
 
-        this.shortcuts = ['CommandOrControl+Shift+D', 'CommandOrControl+Shift+W', 
-                         'CommandOrControl+Shift+P', 'CommandOrControl+Shift+E',
-                         'CommandOrControl+Shift+S', 'F5'];
+        this.shortcuts = [
+            'CommandOrControl+Shift+D', 'CommandOrControl+Shift+W',
+            'CommandOrControl+Shift+P', 'CommandOrControl+Shift+E',
+            'CommandOrControl+Shift+A', 'CommandOrControl+Shift+T',
+            'CommandOrControl+Shift+S', 'F5'
+        ];
     }
 
     // ========================================
@@ -622,6 +632,33 @@ class SadeemApplication {
 
         ipcMain.handle('license:getTrialInfo', async () => {
             return await this.licenseService.getTrialInformation();
+        });
+
+        // ========================================
+        // نظام التشفير المتقدم
+        // ========================================
+        ipcMain.handle('encrypt:advanced', async (event, data) => {
+            return this.encryptionService.encryptData(data);
+        });
+
+        ipcMain.handle('decrypt:advanced', async (event, encryptedData) => {
+            return this.encryptionService.decryptData(encryptedData);
+        });
+
+        ipcMain.handle('license:generate', async (event, data) => {
+            return this.encryptionService.generateLicenseKey(data);
+        });
+
+        ipcMain.handle('license:verify', async (event, licenseKey, deviceHWID) => {
+            return this.encryptionService.verifyLicenseKey(licenseKey, deviceHWID);
+        });
+
+        ipcMain.handle('license:getRemainingDays', async (event, licenseKey) => {
+            return this.encryptionService.getRemainingDays(licenseKey);
+        });
+
+        ipcMain.handle('license:isExpired', async (event, licenseKey) => {
+            return this.encryptionService.isLicenseExpired(licenseKey);
         });
 
         // ========================================
@@ -768,7 +805,6 @@ class SadeemApplication {
             console.log('✅ تم استلام إشارة اكتمال شاشة البداية');
             this.splashComplete = true;
             await this.createMainWindow();
-            // إغلاق شاشة البداية فوراً
             if (this.splashScreen && !this.splashScreen.isDestroyed()) {
                 this.splashScreen.destroy();
                 this.splashScreen = null;
@@ -990,8 +1026,6 @@ class SadeemApplication {
         if (!result.canceled && result.filePaths.length > 0) {
             try {
                 const data = await this.importExcel(result.filePaths[0]);
-                // حفظ البيانات في قاعدة البيانات
-                // ... منطق حفظ البيانات ...
                 dialog.showMessageBox(this.mainWindow, {
                     title: 'نجاح',
                     message: `تم استيراد ${data.length} سجل بنجاح`,
@@ -1013,6 +1047,8 @@ class SadeemApplication {
             'Ctrl+Shift+W → إدارة العمال',
             'Ctrl+Shift+P → الرواتب والسلف',
             'Ctrl+Shift+E → المصروفات',
+            'Ctrl+Shift+A → منطقة العمل',
+            'Ctrl+Shift+T → دليل الاستخدام',
             'Ctrl+Shift+S → الإعدادات',
             'F5 → تحديث الصفحة'
         ];
@@ -1167,7 +1203,6 @@ class SadeemApplication {
     async cleanupApplication() {
         console.log('🧹 تنظيف التطبيق...');
         
-        // إلغاء تسجيل الاختصارات
         for (const shortcut of this.shortcuts) {
             globalShortcut.unregister(shortcut);
         }
@@ -1179,9 +1214,6 @@ class SadeemApplication {
     }
 }
 
-// ========================================
-// تشغيل التطبيق
-// ========================================
 const appInstance = new SadeemApplication();
 appInstance.initialize().catch(error => {
     console.error('❌ فشل تشغيل التطبيق:', error);
