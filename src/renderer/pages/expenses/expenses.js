@@ -10,10 +10,17 @@ class ExpensesController {
         this.editMode = false;
         this.currentExpenseId = null;
         this.isLoading = false;
+        this.db = window.__db || null;
     }
 
     async initialize() {
         try {
+            if (!this.db) {
+                this.db = new DatabaseHelper();
+                await this.db.initialize();
+                window.__db = this.db;
+            }
+
             await this.checkReadOnlyMode();
             this.setDefaultFilters();
             this.setupEventListeners();
@@ -24,14 +31,18 @@ class ExpensesController {
             return true;
         } catch (error) {
             console.error('فشل تهيئة المصروفات:', error);
-            await window.electronAPI.logError(error);
+            await window.electronAPI?.logError(error);
             return false;
         }
     }
 
     async checkReadOnlyMode() {
         try {
-            this.readOnlyMode = await window.electronAPI.getReadOnly();
+            if (this.db) {
+                this.readOnlyMode = await this.db.getReadOnly();
+            } else {
+                this.readOnlyMode = await window.electronAPI.getReadOnly();
+            }
             
             if (this.readOnlyMode) {
                 document.getElementById('addExpenseBtn').disabled = true;
@@ -58,7 +69,6 @@ class ExpensesController {
     }
 
     setupEventListeners() {
-        // إضافة مصروف
         const addBtn = document.getElementById('addExpenseBtn');
         if (!this.readOnlyMode) {
             addBtn.addEventListener('click', () => {
@@ -66,19 +76,16 @@ class ExpensesController {
             });
         }
 
-        // تصدير
         document.getElementById('exportBtn').addEventListener('click', async () => {
             await this.exportExpenses();
         });
 
-        // استيراد
         document.getElementById('importBtn').addEventListener('click', async () => {
             if (!this.readOnlyMode) {
                 await this.importExpenses();
             }
         });
 
-        // الفلاتر
         document.getElementById('filterStart').addEventListener('change', (e) => {
             this.filterStart = e.target.value ? new Date(e.target.value) : null;
             this.loadExpenses();
@@ -104,9 +111,8 @@ class ExpensesController {
             this.loadExpenses();
         });
 
-        // تغيير طريقة الدفع لإظهار/إخفاء رقم الشيك
         document.getElementById('expensePaymentMethod').addEventListener('change', (e) => {
-            const checkNumberGroup = document.getElementById('expenseCheckNumber').closest('.form-group');
+            const checkNumberGroup = document.getElementById('checkNumberGroup');
             if (e.target.value === 'check') {
                 checkNumberGroup.style.display = 'block';
             } else {
@@ -140,7 +146,6 @@ class ExpensesController {
             }
         });
 
-        // نموذج المصروف
         document.getElementById('expenseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             await this.saveExpense();
@@ -309,8 +314,7 @@ class ExpensesController {
             document.getElementById('expenseVendor').value = expense.vendor_name || '';
             document.getElementById('expenseCheckNumber').value = expense.check_number || '';
 
-            // إظهار/إخفاء رقم الشيك
-            const checkNumberGroup = document.getElementById('expenseCheckNumber').closest('.form-group');
+            const checkNumberGroup = document.getElementById('checkNumberGroup');
             if (expense.payment_method === 'check') {
                 checkNumberGroup.style.display = 'block';
             } else {
@@ -340,7 +344,7 @@ class ExpensesController {
         document.getElementById('expenseVendor').value = '';
         document.getElementById('expenseCheckNumber').value = '';
         
-        document.getElementById('expenseCheckNumber').closest('.form-group').style.display = 'none';
+        document.getElementById('checkNumberGroup').style.display = 'none';
     }
 
     async saveExpense() {
@@ -396,8 +400,8 @@ class ExpensesController {
                     this.currentExpenseId
                 ]);
 
-                await window.electronAPI.auditLog('update', { table: 'expenses', id: this.currentExpenseId }, data);
-                this.showToast('✅ تم تحديث المصروف بنجاح');
+                await this.db.logActivity('update', 'expenses', this.currentExpenseId, data);
+                this.showToast('✅ تم تحديث المصروف بنجاح', 'success');
             } else {
                 result = await window.electronAPI.dbRun(`
                     INSERT INTO expenses (
@@ -414,8 +418,8 @@ class ExpensesController {
                     data.check_number
                 ]);
 
-                await window.electronAPI.auditLog('insert', { table: 'expenses', id: result.lastID }, data);
-                this.showToast('✅ تم إضافة المصروف بنجاح');
+                await this.db.logActivity('insert', 'expenses', result.lastID, data);
+                this.showToast('✅ تم إضافة المصروف بنجاح', 'success');
             }
 
             document.getElementById('expenseModal').classList.remove('active');
@@ -450,9 +454,9 @@ class ExpensesController {
 
             await window.electronAPI.dbRun('DELETE FROM expenses WHERE id = ?', [expenseId]);
 
-            await window.electronAPI.auditLog('delete', { table: 'expenses', id: expenseId }, {});
+            await this.db.logActivity('delete', 'expenses', expenseId, {});
             await this.loadExpenses();
-            this.showToast('🗑️ تم حذف المصروف بنجاح');
+            this.showToast('🗑️ تم حذف المصروف بنجاح', 'success');
         } catch (error) {
             console.error('خطأ في حذف المصروف:', error);
             this.showToast('❌ حدث خطأ في حذف المصروف', 'error');
@@ -477,12 +481,12 @@ class ExpensesController {
                 'رقم الشيك': exp.check_number || ''
             }));
 
-            const result = await window.electronAPI.exportExcel(exportData, {
+            const result = await this.db.exportExcel(exportData, {
                 title: 'تقرير المصروفات'
             });
 
             if (result.success) {
-                this.showToast('📊 تم تصدير التقرير بنجاح');
+                this.showToast('📊 تم تصدير التقرير بنجاح', 'success');
             } else {
                 this.showToast('❌ فشل تصدير التقرير: ' + result.message, 'error');
             }
@@ -499,34 +503,52 @@ class ExpensesController {
         }
 
         try {
-            const result = await window.electronAPI.importExcel();
-            if (!result || result.length === 0) {
-                this.showToast('⚠️ لا توجد بيانات للاستيراد', 'warning');
-                return;
-            }
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.xlsx,.xls';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
 
-            let importedCount = 0;
-            for (const row of result) {
-                if (row.category && row.amount) {
-                    await window.electronAPI.dbRun(`
-                        INSERT INTO expenses (
-                            category, amount, description, date, payment_method,
-                            vendor_name, created_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                    `, [
-                        row.category,
-                        parseFloat(row.amount) || 0,
-                        row.description || '',
-                        row.date || new Date().toISOString().slice(0, 10),
-                        row.payment_method || 'cash',
-                        row.vendor_name || ''
-                    ]);
-                    importedCount++;
-                }
-            }
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const data = new Uint8Array(event.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-            await this.loadExpenses();
-            this.showToast(`✅ تم استيراد ${importedCount} مصروف بنجاح`);
+                        let importedCount = 0;
+                        for (const row of jsonData) {
+                            if (row.category && row.amount) {
+                                await window.electronAPI.dbRun(`
+                                    INSERT INTO expenses (
+                                        category, amount, description, date, payment_method,
+                                        vendor_name, created_at
+                                    ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                                `, [
+                                    row.category,
+                                    parseFloat(row.amount) || 0,
+                                    row.description || '',
+                                    row.date || new Date().toISOString().slice(0, 10),
+                                    row.payment_method || 'cash',
+                                    row.vendor_name || ''
+                                ]);
+                                importedCount++;
+                            }
+                        }
+
+                        await this.loadExpenses();
+                        this.showToast(`✅ تم استيراد ${importedCount} مصروف بنجاح`, 'success');
+                    } catch (error) {
+                        console.error('خطأ في معالجة الملف:', error);
+                        this.showToast('❌ حدث خطأ في معالجة الملف', 'error');
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            };
+            input.click();
         } catch (error) {
             console.error('خطأ في استيراد المصروفات:', error);
             this.showToast('❌ حدث خطأ في استيراد البيانات', 'error');
@@ -534,32 +556,37 @@ class ExpensesController {
     }
 
     showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        if (!container) {
+            const newContainer = document.createElement('div');
+            newContainer.id = 'toastContainer';
+            newContainer.style.cssText = 'position: fixed; bottom: 30px; right: 30px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;';
+            document.body.appendChild(newContainer);
+        }
+
         const toast = document.createElement('div');
+        toast.className = `toast-message ${type}`;
+        const icon = type === 'success' ? '✅' : (type === 'warning' ? '⚠️' : '❌');
+        toast.textContent = `${icon} ${message}`;
         toast.style.cssText = `
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
             padding: 14px 24px;
             background: rgba(28, 28, 30, 0.95);
-            border: 1px solid rgba(200, 213, 224, 0.1);
+            border: 1px solid ${type === 'success' ? 'rgba(76, 175, 80, 0.3)' : type === 'warning' ? 'rgba(255, 193, 7, 0.3)' : 'rgba(255, 107, 107, 0.3)'};
             border-radius: 10px;
             color: #F5F5F5;
             font-size: 14px;
-            z-index: 9999;
             backdrop-filter: blur(10px);
             animation: slideUp 0.4s ease;
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
             max-width: 90%;
         `;
         
-        const icon = type === 'success' ? '✅' : (type === 'warning' ? '⚠️' : '❌');
-        toast.textContent = `${icon} ${message}`;
-        document.body.appendChild(toast);
+        document.getElementById('toastContainer').appendChild(toast);
 
         setTimeout(() => {
             toast.style.animation = 'slideDown 0.4s ease forwards';
             setTimeout(() => {
-                document.body.removeChild(toast);
+                toast.remove();
             }, 400);
         }, 3000);
     }
@@ -580,7 +607,6 @@ class ExpensesController {
     }
 }
 
-// تشغيل المصروفات
 document.addEventListener('DOMContentLoaded', async () => {
     const expenses = new ExpensesController();
     await expenses.initialize();
