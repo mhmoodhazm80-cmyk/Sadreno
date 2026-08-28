@@ -1,62 +1,45 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// قنوات الاتصال الصالحة من عملية التصيير إلى العملية الرئيسية
 const validChannels = [
-    // التحكم في النافذة
     'window:minimize',
     'window:maximize',
     'window:close',
     'window:isMaximized',
-    
-    // نظام التنقل
     'navigation:navigate',
     'navigation:back',
     'navigation:getCurrentPage',
-    
-    // نظام التفعيل المتقدم
     'license:validate',
     'license:activate',
     'license:getStatus',
     'license:getTrialInfo',
-    
-    // عمليات التشفير المتقدمة
+    'encrypt:advanced',
+    'decrypt:advanced',
+    'license:generate',
+    'license:verify',
+    'license:getRemainingDays',
+    'license:isExpired',
     'encrypt:license',
     'decrypt:license',
     'encrypt:generateSignature',
     'encrypt:verifySignature',
     'encrypt:deriveKey',
-    
-    // قاعدة البيانات
     'db:query',
     'db:run',
     'db:transaction',
-    
-    // استيراد وتصدير
     'import:excel',
     'export:pdf',
     'export:excel',
-    
-    // النسخ الاحتياطي
     'backup:create',
     'backup:restore',
-    
-    // معلومات النظام
     'system:getInfo',
     'system:getHWID',
     'system:getReadOnly',
-    
-    // سجل العمليات
     'audit:log',
     'audit:getLogs',
-    
-    // الأخطاء
     'error:log',
-    
-    // أحداث الشاشة
     'splash:complete'
 ];
 
-// قنوات الاستماع من العملية الرئيسية
 const validListenChannels = [
     'app:readonly-mode',
     'app:license-status',
@@ -67,7 +50,6 @@ const validListenChannels = [
     'navigation:changed'
 ];
 
-// كشف الواجهة الآمنة لعملية التصيير
 contextBridge.exposeInMainWorld('electronAPI', {
     // ========================================
     // التحكم في النافذة
@@ -85,19 +67,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getCurrentPage: () => ipcRenderer.invoke('navigation:getCurrentPage'),
     
     // ========================================
-    // نظام التفعيل والترخيص المتقدم
+    // نظام التفعيل والترخيص
     // ========================================
     validateLicense: () => ipcRenderer.invoke('license:validate'),
-    
     activateLicense: (licenseKey) => {
         if (typeof licenseKey !== 'string' || !licenseKey.trim()) {
             throw new Error('مفتاح الترخيص مطلوب');
         }
         return ipcRenderer.invoke('license:activate', licenseKey.trim());
     },
-    
     getLicenseStatus: () => ipcRenderer.invoke('license:getStatus'),
     getTrialInfo: () => ipcRenderer.invoke('license:getTrialInfo'),
+    
+    // ========================================
+    // نظام التشفير المتقدم
+    // ========================================
+    encryptAdvanced: (data) => ipcRenderer.invoke('encrypt:advanced', data),
+    decryptAdvanced: (encryptedData) => ipcRenderer.invoke('decrypt:advanced', encryptedData),
+    generateLicense: (data) => ipcRenderer.invoke('license:generate', data),
+    verifyLicense: (licenseKey, deviceHWID) => ipcRenderer.invoke('license:verify', licenseKey, deviceHWID),
+    getLicenseRemainingDays: (licenseKey) => ipcRenderer.invoke('license:getRemainingDays', licenseKey),
+    isLicenseExpired: (licenseKey) => ipcRenderer.invoke('license:isExpired', licenseKey),
     
     // ========================================
     // عمليات التشفير المتقدمة
@@ -111,7 +101,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
         }
         return ipcRenderer.invoke('encrypt:license', data, hwid);
     },
-    
     decryptLicense: (encryptedData, hwid) => {
         if (!encryptedData || typeof encryptedData !== 'string') {
             throw new Error('البيانات المشفرة غير صالحة');
@@ -121,14 +110,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
         }
         return ipcRenderer.invoke('decrypt:license', encryptedData, hwid);
     },
-    
     generateSignature: (data, hwid) => {
         if (!data || typeof data !== 'string') {
             throw new Error('البيانات المطلوب توقيعها غير صالحة');
         }
         return ipcRenderer.invoke('encrypt:generateSignature', data, hwid);
     },
-    
     verifySignature: (data, signature, hwid) => {
         if (!data || typeof data !== 'string') {
             throw new Error('البيانات غير صالحة للتحقق');
@@ -138,7 +125,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
         }
         return ipcRenderer.invoke('encrypt:verifySignature', data, signature, hwid);
     },
-    
     deriveKey: (hwid, salt, iterations = 100000) => {
         if (!hwid || typeof hwid !== 'string') {
             throw new Error('HWID مطلوب لاشتقاق المفتاح');
@@ -168,7 +154,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
         }
         return ipcRenderer.invoke('db:query', sql, params);
     },
-    
     dbRun: (sql, params = []) => {
         if (typeof sql !== 'string' || !sql.trim()) {
             throw new Error('استعلام SQL مطلوب');
@@ -178,7 +163,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
         }
         return ipcRenderer.invoke('db:run', sql, params);
     },
-    
     dbTransaction: (operations) => {
         if (!Array.isArray(operations) || operations.length === 0) {
             throw new Error('يجب توفير عمليات المعاملة');
@@ -200,14 +184,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
         }
         return ipcRenderer.invoke('import:excel', filePath);
     },
-    
     exportPDF: (data, options = {}) => {
         if (!data || !Array.isArray(data)) {
             throw new Error('يجب توفير بيانات للتصدير');
         }
         return ipcRenderer.invoke('export:pdf', data, options);
     },
-    
     exportExcel: (data, options = {}) => {
         if (!data || !Array.isArray(data)) {
             throw new Error('يجب توفير بيانات للتصدير');
@@ -239,7 +221,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     auditLog: (action, target, details) => {
         return ipcRenderer.invoke('audit:log', action, target, details);
     },
-    
     getAuditLogs: (limit = 50) => {
         return ipcRenderer.invoke('audit:getLogs', limit);
     },
@@ -300,5 +281,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
 });
 
-// تجميد الكائن لمنع التعديل
 Object.freeze(globalThis);
