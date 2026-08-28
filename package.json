@@ -1,15 +1,16 @@
 {
   "name": "sadeem",
-  "version": "1.0.0",
-  "description": "سديم - نظام إدارة المصانع المتكامل",
+  "version": "2.0.0",
+  "description": "سديم - نظام إدارة المصانع المتكامل - الإصدار المتطور",
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
     "build:win": "electron-builder --win --x64",
     "build:win32": "electron-builder --win --ia32",
-    "dist": "electron-builder --win --x64 --ia32"
+    "dist": "electron-builder --win --x64 --ia32",
+    "postinstall": "electron-builder install-app-deps"
   },
-  "author": "Sadeem Team",
+  "author": "Sadeem Team - محمود حازم & مصطفى رينو",
   "license": "Proprietary",
   "devDependencies": {
     "electron": "^27.0.0",
@@ -26,8 +27,8 @@
     "uuid": "^9.0.1"
   },
   "build": {
-    "appId": "com.sadeem.factory",
-    "productName": "سديم",
+    "appId": "com.sadeem.factory.pro",
+    "productName": "سديم برو",
     "directories": {
       "output": "dist",
       "buildResources": "src/assets"
@@ -40,8 +41,11 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
       "shortcutName": "سديم",
-      "installerIcon": "src/assets/logo.ico"
+      "installerIcon": "src/assets/logo.ico",
+      "uninstallerIcon": "src/assets/logo.ico",
+      "perMachine": true
     },
     "files": [
       "src/**/*",
