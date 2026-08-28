@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دليل الاستخدام - سديم</title>
+    <link rel="stylesheet" href="../../styles/global.css">
+    <style>
+        .tutorial-container {
+            padding: 80px 30px 30px 30px;
+            height: 100vh;
+            overflow-y: auto;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .tutorial-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            animation: slideInDown 0.5s ease;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .tutorial-title {
+            font-size: 28px;
+            font-weight: 300;
+            color: #F5F5F5;
+        }
+
+        .tutorial-title span {
+            color: #C8D5E0;
+            background: linear-gradient(90deg, #C8D5E0, #E8EDF2);
+            -webkit-text-fill-color: transparent;
+        }
+
+        .tutorial-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            animation: fadeScale 0.5s ease 0.2s both;
+        }
+
+        .tutorial-card {
+            background: rgba(28, 28, 30, 0.8);
+            border: 1px solid rgba(200, 213, 224, 0.08);
+            border-radius: 12px;
+            padding: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .tutorial-card:hover {
+            border-color: rgba(200, 213, 224, 0.15);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .tutorial-card .card-icon {
+            font-size: 36px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .tutorial-card h3 {
+            color: #F5F5F5;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .tutorial-card p {
+            color: #9BA5AF;
+            font-size: 14px;
+            line-height: 1.8;
+            margin-bottom: 12px;
+        }
+
+        .tutorial-card ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .tutorial-card ul li {
+            color: #9BA5AF;
+            font-size: 13px;
+            padding: 4px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tutorial-card ul li::before {
+            content: '✓';
+            color: #4CAF50;
+            font-weight: 600;
+        }
+
+        .tutorial-card .shortcut-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            background: rgba(43, 45, 66, 0.3);
+            border-radius: 12px;
+            font-size: 11px;
+            color: #9BA5AF;
+            font-family: monospace;
+            margin-top: 8px;
+        }
+
+        .tutorial-card .btn-try {
+            padding: 8px 20px;
+            background: #2B2D42;
+            color: #F5F5F5;
+            border: 1px solid #C8D5E0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 12px;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .tutorial-card .btn-try:hover:not(:disabled) {
+            background: #E8EDF2;
+            color: #0A0A0A;
+        }
+
+        .tutorial-card .btn-try:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ========================================
+           أزرار النافذة
+           ======================================== */
+        .window-controls {
+            position: fixed;
+            top: 0;
+            right: 0;
+            z-index: 10000;
+            display: flex;
+            gap: 10px;
+            padding: 12px 20px;
+            background: rgba(10, 10, 10, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-app-region: drag;
+            border-bottom-left-radius: 12px;
+            user-select: none;
+        }
+
+        .window-controls button {
+            width: 34px;
+            height: 34px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            color: #9BA5AF;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            -webkit-app-region: no-drag;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            backdrop-filter: blur(5px);
+        }
+
+        .window-controls button:hover {
+            background: rgba(200, 213, 224, 0.15);
+            color: #F5F5F5;
+            transform: scale(1.05);
+        }
+
+        .window-controls .close-btn:hover {
+            background: #ff4757;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .window-controls .minimize-btn:hover {
+            background: rgba(43, 45, 66, 0.6);
+        }
+
+        .window-controls .maximize-btn:hover {
+            background: rgba(43, 45, 66, 0.6);
+        }
+
+        .window-controls button svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* ========================================
+           التجاوب مع الشاشات
+           ======================================== */
+        @media (max-width: 768px) {
+            .tutorial-container {
+                padding: 70px 15px 15px 15px;
+            }
+
+            .tutorial-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tutorial-card {
+                padding: 20px;
+            }
+
+            .window-controls {
+                padding: 10px 15px;
+                gap: 8px;
+            }
+
+            .window-controls button {
+                width: 30px;
+                height: 30px;
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .tutorial-title {
+                font-size: 22px;
+            }
+
+            .tutorial-card .card-icon {
+                font-size: 28px;
+            }
+
+            .tutorial-card h3 {
+                font-size: 16px;
+            }
+
+            .window-controls {
+                padding: 8px 12px;
+                gap: 6px;
+            }
+
+            .window-controls button {
+                width: 26px;
+                height: 26px;
+                font-size: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ========================================
+         أزرار التحكم في النافذة
+         ======================================== -->
+    <div class="window-controls">
+        <button class="minimize-btn" id="minimizeBtn" title="تصغير">
+            <svg viewBox="0 0 12 12">
+                <rect x="0" y="5" width="12" height="2" fill="currentColor"/>
+            </svg>
+        </button>
+        <button class="maximize-btn" id="maximizeBtn" title="تكبير">
+            <svg viewBox="0 0 12 12">
+                <rect x="0" y="0" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+        </button>
+        <button class="close-btn" id="closeBtn" title="إغلاق">
+            <svg viewBox="0 0 12 12">
+                <line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+        </button>
+    </div>
+
+    <div class="tutorial-container">
+        <div class="tutorial-header">
+            <h1 class="tutorial-title">📖 دليل <span>الاستخدام</span></h1>
+            <div style="color: #9BA5AF; font-size: 14px; opacity: 0.6;">
+                تعلم كيفية استخدام نظام سديم بسهولة
+            </div>
+        </div>
+
+        <div class="tutorial-grid">
+            <!-- لوحة التحكم -->
+            <div class="tutorial-card">
+                <span class="card-icon">📊</span>
+                <h3>لوحة التحكم</h3>
+                <p>تعرض لك ملخصاً سريعاً لأهم المؤشرات والإحصائيات في المصنع:</p>
+                <ul>
+                    <li>إجمالي عدد العمال النشطين</li>
+                    <li>المصروفات الشهرية</li>
+                    <li>الإنتاج اليومي ونسبة الحضور</li>
+                    <li>الرواتب المستحقة والسلف النشطة</li>
+                    <li>مؤشرات الأداء الرئيسية (KPIs)</li>
+                </ul>
+                <span class="shortcut-badge">Ctrl+Shift+D</span>
+                <button class="btn-try" onclick="window.__navigation?.navigateTo('dashboard', 'dashboard/dashboard.html')">انتقال</button>
+            </div>
+
+            <!-- إدارة العمال -->
+            <div class="tutorial-card">
+                <span class="card-icon">👷</span>
+                <h3>إدارة العمال</h3>
+                <p>يمكنك من إدارة جميع بيانات العمال في المصنع:</p>
+                <ul>
+                    <li>إضافة عامل جديد مع جميع بياناته</li>
+                    <li>تعديل بيانات العمال الحالية</li>
+                    <li>حذف أو تعطيل عامل</li>
+                    <li>تسجيل الحضور والإنتاج اليومي</li>
+                    <li>استيراد عمال من ملف Excel</li>
+                </ul>
+                <span class="shortcut-badge">Ctrl+Shift+W</span>
+                <button class="btn-try" onclick="window.__navigation?.navigateTo('workers', 'workers/workers.html')">انتقال</button>
+            </div>
+
+            <!-- الرواتب والسلف -->
+            <div class="tutorial-card">
+                <span class="card-icon">💰</span>
+                <h3>الرواتب والسلف</h3>
+                <p>نظام متكامل لإدارة الرواتب والسلف والخصومات:</p>
+                <ul>
+                    <li>حساب الرواتب تلقائياً حسب نظام الأجر</li>
+                    <li>تسجيل السلف والخصومات</li>
+                    <li>تسديد الرواتب وتحديث حالتها</li>
+                    <li>إدارة القروض مع نسب الفائدة</li>
+                    <li>تصدير تقارير الرواتب</li>
+                </ul>
+                <span class="shortcut-badge">Ctrl+Shift+P</span>
+                <button class="btn-try" onclick="window.__navigation?.navigateTo('payroll', 'payroll/payroll.html')">انتقال</button>
+            </div>
+
+            <!-- المصروفات -->
+            <div class="tutorial-card">
+                <span class="card-icon">💸</span>
+                <h3>المصروفات التشغيلية</h3>
+                <p>تتبع جميع مصروفات المصنع بدقة:</p>
+                <ul>
+                    <li>تسجيل المصروفات مع التصنيف</li>
+                    <li>تحديد طريقة الدفع (نقدي/بنكي/شيك)</li>
+                    <li>إدارة الموردين</li>
+                    <li>تصدير تقارير المصروفات</li>
+                    <li>استيراد مصروفات من Excel</li>
+                </ul>
+                <span class="shortcut-badge">Ctrl+Shift+E</span>
+                <button class="btn-try" onclick="window.__navigation?.navigateTo('expenses', 'expenses/expenses.html')">انتقال</button>
+            </div>
+
+            <!-- منطقة العمل -->
+            <div class="tutorial-card">
+                <span class="card-icon">🔧</span>
+                <h3>منطقة العمل</h3>
+                <p>مساحة مخصصة لتخصيص وإدارة شغل المصنع:</p>
+                <ul>
+                    <li>إضافة وتعديل حقول مخصصة</li>
+                    <li>إضافة صور للمنتجات والنماذج</li>
+                    <li>ترتيب الحقول حسب الرغبة بالسحب والإفلات</li>
+                    <li>طباعة البيانات مع الصور</li>
+                    <li>تصدير منطقة العمل كاملة</li>
+                </ul>
+                <span class="shortcut-badge">Ctrl+Shift+A</span>
+                <button class="btn-try" onclick="window.__navigation?.navigateTo('workspace', 'workspace/workspace.html')">انتقال</button>
+            </div>
+
+            <!-- الإعدادات -->
+            <div class="tutorial-card">
+                <span class="card-icon">⚙️</span>
+                <h3>الإعدادات والتفعيل</h3>
+                <p>إدارة إعدادات البرنامج والترخيص:</p>
+                <ul>
+                    <li>تخصيص معلومات الشركة والعملة</li>
+                    <li>تفعيل البرنامج باستخدام كود التفعيل</li>
+                    <li>إنشاء واستعادة النسخ الاحتياطية</li>
+                    <li>معلومات النظام و HWID</li>
+                    <li>إعدادات متقدمة (سجل العمليات، الإشعارات)</li>
+                </ul>
+                <span class="shortcut-badge">Ctrl+Shift+S</span>
+                <button class="btn-try" onclick="window.__navigation?.navigateTo('settings', 'settings/settings.html')">انتقال</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../utils/navigation.js"></script>
+</body>
+</html>
