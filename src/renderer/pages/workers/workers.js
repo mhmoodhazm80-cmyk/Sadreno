@@ -12,10 +12,17 @@ class WorkersController {
         this.totalWorkers = 0;
         this.animations = [];
         this.isLoading = false;
+        this.db = window.__db || null;
     }
 
     async initialize() {
         try {
+            if (!this.db) {
+                this.db = new DatabaseHelper();
+                await this.db.initialize();
+                window.__db = this.db;
+            }
+
             await this.checkReadOnlyMode();
             await this.loadWorkers();
             this.setupEventListeners();
@@ -26,18 +33,23 @@ class WorkersController {
             return true;
         } catch (error) {
             console.error('فشل تهيئة إدارة العمال:', error);
-            await window.electronAPI.logError(error);
+            await window.electronAPI?.logError(error);
             return false;
         }
     }
 
     async checkReadOnlyMode() {
         try {
-            this.readOnlyMode = await window.electronAPI.getReadOnly();
+            if (this.db) {
+                this.readOnlyMode = await this.db.getReadOnly();
+            } else {
+                this.readOnlyMode = await window.electronAPI.getReadOnly();
+            }
             
             if (this.readOnlyMode) {
                 document.getElementById('addWorkerBtn').disabled = true;
                 document.getElementById('importBtn').disabled = true;
+                document.getElementById('exportBtn').disabled = true;
                 document.querySelectorAll('.btn-action.edit, .btn-action.delete, .btn-action.attendance').forEach(btn => {
                     btn.disabled = true;
                 });
@@ -96,7 +108,6 @@ class WorkersController {
                 }
             }
 
-            // حساب العدد الإجمالي للصفحات
             const countQuery = query.replace('SELECT *', 'SELECT COUNT(*) as total');
             const countResult = await window.electronAPI.dbQuery(countQuery, params);
             this.totalWorkers = countResult[0]?.total || 0;
@@ -180,7 +191,6 @@ class WorkersController {
             tbody.appendChild(tr);
         }
 
-        // إضافة أحداث للأزرار
         tbody.querySelectorAll('.btn-action.edit:not([disabled])').forEach(btn => {
             btn.addEventListener('click', () => this.editWorker(parseInt(btn.dataset.id)));
         });
@@ -210,21 +220,18 @@ class WorkersController {
     }
 
     setupEventListeners() {
-        // بحث
         document.getElementById('searchInput').addEventListener('input', (e) => {
             this.searchTerm = e.target.value;
             this.currentPage = 1;
             this.loadWorkers();
         });
 
-        // فلتر
         document.getElementById('filterSelect').addEventListener('change', (e) => {
             this.filterStatus = e.target.value;
             this.currentPage = 1;
             this.loadWorkers();
         });
 
-        // إضافة عامل
         const addBtn = document.getElementById('addWorkerBtn');
         if (!this.readOnlyMode) {
             addBtn.addEventListener('click', () => {
@@ -232,7 +239,6 @@ class WorkersController {
             });
         }
 
-        // استيراد
         const importBtn = document.getElementById('importBtn');
         if (!this.readOnlyMode) {
             importBtn.addEventListener('click', () => {
@@ -240,13 +246,15 @@ class WorkersController {
             });
         }
 
-        // نموذج العامل
+        document.getElementById('exportBtn').addEventListener('click', async () => {
+            await this.exportWorkers();
+        });
+
         document.getElementById('workerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             await this.saveWorker();
         });
 
-        // تغيير نظام الأجر
         document.getElementById('salaryType').addEventListener('change', (e) => {
             const pieceRateGroup = document.getElementById('pieceRateGroup');
             if (e.target.value === 'piece') {
@@ -258,7 +266,6 @@ class WorkersController {
             }
         });
 
-        // نموذج الحضور
         document.getElementById('attendanceForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             await this.saveAttendance();
@@ -440,8 +447,8 @@ class WorkersController {
                     this.currentWorkerId
                 ]);
 
-                await window.electronAPI.auditLog('update', { table: 'workers', id: this.currentWorkerId }, data);
-                this.showToast('✅ تم تحديث بيانات العامل بنجاح');
+                await this.db.logActivity('update', 'workers', this.currentWorkerId, data);
+                this.showToast('✅ تم تحديث بيانات العامل بنجاح', 'success');
             } else {
                 result = await window.electronAPI.dbRun(`
                     INSERT INTO workers (
@@ -461,8 +468,8 @@ class WorkersController {
                     data.is_active
                 ]);
 
-                await window.electronAPI.auditLog('insert', { table: 'workers', id: result.lastID }, data);
-                this.showToast('✅ تم إضافة العامل بنجاح');
+                await this.db.logActivity('insert', 'workers', result.lastID, data);
+                this.showToast('✅ تم إضافة العامل بنجاح', 'success');
             }
 
             document.getElementById('workerModal').classList.remove('active');
@@ -500,9 +507,9 @@ class WorkersController {
                 [workerId]
             );
 
-            await window.electronAPI.auditLog('delete', { table: 'workers', id: workerId }, {});
+            await this.db.logActivity('delete', 'workers', workerId, {});
             await this.loadWorkers();
-            this.showToast('🗑️ تم حذف العامل بنجاح');
+            this.showToast('🗑️ تم حذف العامل بنجاح', 'success');
         } catch (error) {
             console.error('خطأ في حذف العامل:', error);
             this.showToast('❌ حدث خطأ في حذف العامل', 'error');
@@ -561,7 +568,6 @@ class WorkersController {
                 return;
             }
 
-            // التحقق من وجود سجل مسبق لنفس اليوم
             const existing = await window.electronAPI.dbQuery(
                 'SELECT id FROM daily_operations WHERE worker_id = ? AND date = ?',
                 [workerId, date]
@@ -592,13 +598,13 @@ class WorkersController {
                 `, [workerId, date, status, hoursWorked, overtime, pieces, defective, notes]);
             }
 
-            await window.electronAPI.auditLog('insert', { table: 'daily_operations', id: workerId }, {
+            await this.db.logActivity('insert', 'daily_operations', workerId, {
                 date, status, hoursWorked, overtime, pieces, defective
             });
 
             document.getElementById('attendanceModal').classList.remove('active');
             document.getElementById('attendanceForm').reset();
-            this.showToast('✅ تم تسجيل الحضور بنجاح');
+            this.showToast('✅ تم تسجيل الحضور بنجاح', 'success');
             await this.loadWorkers();
 
         } catch (error) {
@@ -614,69 +620,125 @@ class WorkersController {
         }
 
         try {
-            // استخدام dialog لاختيار الملف
-            const result = await window.electronAPI.importExcel();
-            if (!result || result.length === 0) {
-                this.showToast('⚠️ لا توجد بيانات للاستيراد', 'warning');
-                return;
-            }
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.xlsx,.xls';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
 
-            let importedCount = 0;
-            for (const row of result) {
-                if (row.name) {
-                    await window.electronAPI.dbRun(`
-                        INSERT INTO workers (
-                            name, position, salary_type, salary_rate,
-                            phone, address, hire_date, is_active
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-                    `, [
-                        row.name,
-                        row.position || '',
-                        row.salary_type || 'monthly',
-                        parseFloat(row.salary_rate) || 0,
-                        row.phone || '',
-                        row.address || '',
-                        row.hire_date || new Date().toISOString().slice(0, 10)
-                    ]);
-                    importedCount++;
-                }
-            }
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const data = new Uint8Array(event.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-            await this.loadWorkers();
-            this.showToast(`✅ تم استيراد ${importedCount} عامل بنجاح`);
+                        let importedCount = 0;
+                        for (const row of jsonData) {
+                            if (row.name) {
+                                await window.electronAPI.dbRun(`
+                                    INSERT INTO workers (
+                                        name, position, salary_type, salary_rate,
+                                        phone, address, hire_date, is_active
+                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+                                `, [
+                                    row.name,
+                                    row.position || '',
+                                    row.salary_type || 'monthly',
+                                    parseFloat(row.salary_rate) || 0,
+                                    row.phone || '',
+                                    row.address || '',
+                                    row.hire_date || new Date().toISOString().slice(0, 10)
+                                ]);
+                                importedCount++;
+                            }
+                        }
+
+                        await this.loadWorkers();
+                        this.showToast(`✅ تم استيراد ${importedCount} عامل بنجاح`, 'success');
+                    } catch (error) {
+                        console.error('خطأ في معالجة الملف:', error);
+                        this.showToast('❌ حدث خطأ في معالجة الملف', 'error');
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            };
+            input.click();
         } catch (error) {
             console.error('خطأ في استيراد العمال:', error);
             this.showToast('❌ حدث خطأ في استيراد البيانات', 'error');
         }
     }
 
+    async exportWorkers() {
+        try {
+            if (!this.workers || this.workers.length === 0) {
+                this.showToast('⚠️ لا توجد بيانات للتصدير', 'warning');
+                return;
+            }
+
+            const exportData = this.workers.map(w => ({
+                'المعرف': w.id,
+                'الاسم': w.name,
+                'الوظيفة': w.position || '',
+                'نظام الأجر': w.salary_type || '',
+                'السعر': w.salary_rate || 0,
+                'الهاتف': w.phone || '',
+                'العنوان': w.address || '',
+                'تاريخ التعيين': w.hire_date || '',
+                'الحالة': w.is_active === 1 ? 'نشط' : w.is_active === 2 ? 'في إجازة' : 'غير نشط'
+            }));
+
+            const result = await this.db.exportExcel(exportData, {
+                title: 'تقرير العمال'
+            });
+
+            if (result.success) {
+                this.showToast('📊 تم تصدير تقرير العمال بنجاح', 'success');
+            } else {
+                this.showToast('❌ فشل تصدير التقرير', 'error');
+            }
+        } catch (error) {
+            console.error('خطأ في تصدير العمال:', error);
+            this.showToast('❌ حدث خطأ في التصدير', 'error');
+        }
+    }
+
     showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        if (!container) {
+            const newContainer = document.createElement('div');
+            newContainer.id = 'toastContainer';
+            newContainer.style.cssText = 'position: fixed; bottom: 30px; right: 30px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;';
+            document.body.appendChild(newContainer);
+        }
+
         const toast = document.createElement('div');
+        toast.className = `toast-message ${type}`;
+        const icon = type === 'success' ? '✅' : (type === 'warning' ? '⚠️' : '❌');
+        toast.textContent = `${icon} ${message}`;
         toast.style.cssText = `
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
             padding: 14px 24px;
             background: rgba(28, 28, 30, 0.95);
-            border: 1px solid rgba(200, 213, 224, 0.1);
+            border: 1px solid ${type === 'success' ? 'rgba(76, 175, 80, 0.3)' : type === 'warning' ? 'rgba(255, 193, 7, 0.3)' : 'rgba(255, 107, 107, 0.3)'};
             border-radius: 10px;
             color: #F5F5F5;
             font-size: 14px;
-            z-index: 9999;
             backdrop-filter: blur(10px);
             animation: slideUp 0.4s ease;
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
             max-width: 90%;
         `;
         
-        const icon = type === 'success' ? '✅' : (type === 'warning' ? '⚠️' : '❌');
-        toast.textContent = `${icon} ${message}`;
-        document.body.appendChild(toast);
+        document.getElementById('toastContainer').appendChild(toast);
 
         setTimeout(() => {
             toast.style.animation = 'slideDown 0.4s ease forwards';
             setTimeout(() => {
-                document.body.removeChild(toast);
+                toast.remove();
             }, 400);
         }, 3000);
     }
@@ -692,7 +754,6 @@ class WorkersController {
     }
 }
 
-// تشغيل إدارة العمال
 document.addEventListener('DOMContentLoaded', async () => {
     const workers = new WorkersController();
     await workers.initialize();
