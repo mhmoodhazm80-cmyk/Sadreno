@@ -114,8 +114,7 @@
 
         .dashboard-title span {
             color: #C8D5E0;
-            background: linear-gradient(90deg, #C8D5E0, #E8EDF2);
-            -webkit-background-clip: text;
+            background: linear-gradient(90deg, #C8D5E0, #E8EDF2);;
             -webkit-text-fill-color: transparent;
         }
 
@@ -587,6 +586,66 @@
         }
 
         /* ========================================
+           أزرار النافذة
+           ======================================== */
+        .window-controls {
+            position: fixed;
+            top: 0;
+            right: 0;
+            z-index: 10000;
+            display: flex;
+            gap: 10px;
+            padding: 12px 20px;
+            background: rgba(10, 10, 10, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-app-region: drag;
+            border-bottom-left-radius: 12px;
+            user-select: none;
+        }
+
+        .window-controls button {
+            width: 34px;
+            height: 34px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            color: #9BA5AF;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            -webkit-app-region: no-drag;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            backdrop-filter: blur(5px);
+        }
+
+        .window-controls button:hover {
+            background: rgba(200, 213, 224, 0.15);
+            color: #F5F5F5;
+            transform: scale(1.05);
+        }
+
+        .window-controls .close-btn:hover {
+            background: #ff4757;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .window-controls .minimize-btn:hover {
+            background: rgba(43, 45, 66, 0.6);
+        }
+
+        .window-controls .maximize-btn:hover {
+            background: rgba(43, 45, 66, 0.6);
+        }
+
+        .window-controls button svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* ========================================
            التجاوب مع الشاشات
            ======================================== */
         @media (max-width: 992px) {
@@ -626,6 +685,17 @@
             .kpi-grid {
                 grid-template-columns: 1fr 1fr;
             }
+
+            .window-controls {
+                padding: 10px 15px;
+                gap: 8px;
+            }
+
+            .window-controls button {
+                width: 30px;
+                height: 30px;
+                font-size: 12px;
+            }
         }
 
         @media (max-width: 480px) {
@@ -656,10 +726,43 @@
             .kpi-grid {
                 grid-template-columns: 1fr;
             }
+
+            .window-controls {
+                padding: 8px 12px;
+                gap: 6px;
+            }
+
+            .window-controls button {
+                width: 26px;
+                height: 26px;
+                font-size: 10px;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- ========================================
+         أزرار التحكم في النافذة
+         ======================================== -->
+    <div class="window-controls">
+        <button class="minimize-btn" id="minimizeBtn" title="تصغير">
+            <svg viewBox="0 0 12 12">
+                <rect x="0" y="5" width="12" height="2" fill="currentColor"/>
+            </svg>
+        </button>
+        <button class="maximize-btn" id="maximizeBtn" title="تكبير">
+            <svg viewBox="0 0 12 12">
+                <rect x="0" y="0" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+        </button>
+        <button class="close-btn" id="closeBtn" title="إغلاق">
+            <svg viewBox="0 0 12 12">
+                <line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+        </button>
+    </div>
+
     <div class="dashboard-container">
         <!-- Banner وضع القراءة فقط -->
         <div id="readonlyBanner" class="readonly-banner" style="display: none;">
@@ -685,25 +788,25 @@
                 <span class="stat-icon">👷</span>
                 <div class="stat-label">إجمالي العمال</div>
                 <div class="stat-value" id="totalWorkers">0</div>
-                <span class="stat-change positive">▲ 12% هذا الشهر</span>
+                <span class="stat-change positive">▲ نشط</span>
             </div>
             <div class="stat-card" style="--delay: 1">
                 <span class="stat-icon">💰</span>
                 <div class="stat-label">المصروفات هذا الشهر</div>
                 <div class="stat-value" id="monthlyExpenses">0 ج.م</div>
-                <span class="stat-change negative">▼ 5% عن الشهر الماضي</span>
+                <span class="stat-change info">● هذا الشهر</span>
             </div>
             <div class="stat-card" style="--delay: 2">
                 <span class="stat-icon">📦</span>
                 <div class="stat-label">الإنتاج اليومي</div>
                 <div class="stat-value" id="dailyProduction">0</div>
-                <span class="stat-change positive">▲ 8% عن الأمس</span>
+                <span class="stat-change positive">▲ اليوم</span>
             </div>
             <div class="stat-card" style="--delay: 3">
                 <span class="stat-icon">📋</span>
                 <div class="stat-label">الحضور اليوم</div>
                 <div class="stat-value" id="todayAttendance">0%</div>
-                <span class="stat-change positive">▲ 3% عن الأمس</span>
+                <span class="stat-change positive">▲ اليوم</span>
             </div>
             <div class="stat-card" style="--delay: 4">
                 <span class="stat-icon">📊</span>
@@ -838,7 +941,8 @@
         </div>
     </div>
 
-    <script src="./dashboard.js"></script>
     <script src="../../utils/navigation.js"></script>
+    <script src="../../utils/database-helper.js"></script>
+    <script src="./dashboard.js"></script>
 </body>
 </html>
