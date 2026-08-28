@@ -4,6 +4,7 @@ class DashboardController {
         this.updateInterval = null;
         this.readOnlyMode = false;
         this.isRefreshing = false;
+        this.db = window.__db || null;
         this.stats = {
             totalWorkers: 0,
             monthlyExpenses: 0,
@@ -24,6 +25,12 @@ class DashboardController {
 
     async initialize() {
         try {
+            if (!this.db) {
+                this.db = new DatabaseHelper();
+                await this.db.initialize();
+                window.__db = this.db;
+            }
+
             await this.checkReadOnlyMode();
             await this.loadDashboardData();
             this.setupAutoRefresh();
@@ -35,18 +42,16 @@ class DashboardController {
             return true;
         } catch (error) {
             console.error('فشل تهيئة لوحة التحكم:', error);
-            await window.electronAPI.logError(error);
+            await window.electronAPI?.logError(error);
             return false;
         }
     }
 
     setupEventListeners() {
-        // زر التحديث
         document.getElementById('refreshBtn').addEventListener('click', async () => {
             await this.refreshData();
         });
 
-        // تحديث تلقائي عند العودة للصفحة
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
                 this.loadDashboardData();
@@ -56,7 +61,11 @@ class DashboardController {
 
     async checkReadOnlyMode() {
         try {
-            this.readOnlyMode = await window.electronAPI.getReadOnly();
+            if (this.db) {
+                this.readOnlyMode = await this.db.getReadOnly();
+            } else {
+                this.readOnlyMode = await window.electronAPI.getReadOnly();
+            }
             
             const banner = document.getElementById('readonlyBanner');
             if (this.readOnlyMode) {
@@ -98,83 +107,28 @@ class DashboardController {
 
     async loadDashboardData() {
         try {
-            // تحميل إجمالي العمال
-            const workersResult = await window.electronAPI.dbQuery(
-                'SELECT COUNT(*) as total FROM workers WHERE is_active = 1'
-            );
-            if (workersResult && workersResult.length > 0) {
-                this.stats.totalWorkers = workersResult[0].total || 0;
-                this.animateNumber('totalWorkers', this.stats.totalWorkers);
+            let stats;
+            if (this.db) {
+                stats = await this.db.getDashboardStats();
+            } else {
+                stats = await window.electronAPI.getDashboardStats();
             }
-
-            // تحميل مصروفات الشهر
-            const currentMonth = new Date().toISOString().slice(0, 7);
-            const expensesResult = await window.electronAPI.dbQuery(
-                'SELECT SUM(amount) as total FROM expenses WHERE strftime("%Y-%m", date) = ?',
-                [currentMonth]
-            );
-            if (expensesResult && expensesResult.length > 0) {
-                this.stats.monthlyExpenses = expensesResult[0].total || 0;
-                document.getElementById('monthlyExpenses').textContent = 
-                    this.formatCurrency(this.stats.monthlyExpenses);
-            }
-
-            // تحميل الإنتاج اليومي
-            const today = new Date().toISOString().slice(0, 10);
-            const productionResult = await window.electronAPI.dbQuery(
-                'SELECT SUM(pieces_produced) as total FROM daily_operations WHERE date = ?',
-                [today]
-            );
-            if (productionResult && productionResult.length > 0) {
-                this.stats.dailyProduction = productionResult[0].total || 0;
-                this.animateNumber('dailyProduction', this.stats.dailyProduction);
-            }
-
-            // تحميل نسبة الحضور اليوم
-            const attendanceResult = await window.electronAPI.dbQuery(`
-                SELECT 
-                    COUNT(*) as total,
-                    SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present
-                FROM daily_operations 
-                WHERE date = ?
-            `, [today]);
             
-            if (attendanceResult && attendanceResult.length > 0) {
-                const total = attendanceResult[0].total || 1;
-                const present = attendanceResult[0].present || 0;
-                this.stats.todayAttendance = Math.round((present / total) * 100);
-                this.animateNumber('todayAttendance', this.stats.todayAttendance, '%');
-            }
-
-            // تحميل الرواتب المستحقة
-            const payrollResult = await window.electronAPI.dbQuery(
-                'SELECT SUM(net_salary) as total FROM payroll WHERE is_paid = 0'
-            );
-            if (payrollResult && payrollResult.length > 0) {
-                this.stats.pendingPayroll = payrollResult[0].total || 0;
+            if (stats) {
+                this.stats = stats;
+                this.animateNumber('totalWorkers', stats.totalWorkers);
+                document.getElementById('monthlyExpenses').textContent = 
+                    this.formatCurrency(stats.monthlyExpenses);
+                this.animateNumber('dailyProduction', stats.dailyProduction);
+                this.animateNumber('todayAttendance', stats.todayAttendance, '%');
                 document.getElementById('pendingPayroll').textContent = 
-                    this.formatCurrency(this.stats.pendingPayroll);
+                    this.formatCurrency(stats.pendingPayroll);
+                this.animateNumber('activeAdvances', stats.activeAdvances);
             }
 
-            // تحميل السلف النشطة
-            const advancesResult = await window.electronAPI.dbQuery(
-                'SELECT COUNT(*) as total FROM advances WHERE is_deducted = 0'
-            );
-            if (advancesResult && advancesResult.length > 0) {
-                this.stats.activeAdvances = advancesResult[0].total || 0;
-                this.animateNumber('activeAdvances', this.stats.activeAdvances);
-            }
-
-            // تحميل مؤشرات الأداء الإضافية
             await this.loadKPIs();
-
-            // تحميل النشاطات الأخيرة
             await this.loadRecentActivities();
-
-            // تحميل التنبيهات
             await this.loadAlerts();
-
-            // تحديث الرسم البياني
             await this.updateChart();
 
         } catch (error) {
@@ -188,7 +142,6 @@ class DashboardController {
             const today = new Date().toISOString().slice(0, 10);
             const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
 
-            // نسبة الإنتاجية
             const productivityResult = await window.electronAPI.dbQuery(`
                 SELECT 
                     SUM(pieces_produced) as total_produced,
@@ -205,7 +158,6 @@ class DashboardController {
                     this.stats.productivityRate + ' وحدة/عامل';
             }
 
-            // نسبة العيوب
             const defectResult = await window.electronAPI.dbQuery(`
                 SELECT 
                     SUM(pieces_produced) as total_produced,
@@ -222,7 +174,6 @@ class DashboardController {
                     this.stats.defectRate.toFixed(1) + '%';
             }
 
-            // تكلفة القطعة
             const costResult = await window.electronAPI.dbQuery(`
                 SELECT 
                     SUM(amount) as total_cost,
@@ -240,7 +191,6 @@ class DashboardController {
                     this.formatCurrency(this.stats.costPerUnit);
             }
 
-            // المخزون الحرج
             const stockResult = await window.electronAPI.dbQuery(`
                 SELECT COUNT(*) as total
                 FROM inventory
@@ -259,15 +209,12 @@ class DashboardController {
 
     async loadRecentActivities() {
         try {
-            const activities = await window.electronAPI.dbQuery(`
-                SELECT 
-                    action,
-                    target_table,
-                    created_at
-                FROM activity_log 
-                ORDER BY created_at DESC 
-                LIMIT 5
-            `);
+            let activities;
+            if (this.db) {
+                activities = await this.db.getActivityLogs(5);
+            } else {
+                activities = await window.electronAPI.getAuditLogs(5);
+            }
 
             const container = document.getElementById('recentActivities');
             container.innerHTML = '';
@@ -308,11 +255,14 @@ class DashboardController {
     async loadAlerts() {
         try {
             const alerts = [];
-
-            // التحقق من حالة الترخيص
-            const licenseStatus = await window.electronAPI.getLicenseStatus();
+            let licenseStatus;
+            if (this.db) {
+                licenseStatus = await this.db.getLicenseStatus();
+            } else {
+                licenseStatus = await window.electronAPI.getLicenseStatus();
+            }
             
-            if (!licenseStatus.isValid) {
+            if (licenseStatus && !licenseStatus.isValid) {
                 if (licenseStatus.isExpired) {
                     alerts.push({
                         type: 'danger',
@@ -328,7 +278,7 @@ class DashboardController {
                         detail: 'يرجى تفعيل البرنامج باستخدام كود التفعيل'
                     });
                 }
-            } else if (licenseStatus.isTrial && licenseStatus.daysRemaining <= 3) {
+            } else if (licenseStatus && licenseStatus.isTrial && licenseStatus.daysRemaining <= 3) {
                 alerts.push({
                     type: 'warning',
                     icon: '⏰',
@@ -337,7 +287,6 @@ class DashboardController {
                 });
             }
 
-            // التحقق من السلف غير المسددة
             const advancesCount = await window.electronAPI.dbQuery(
                 'SELECT COUNT(*) as total FROM advances WHERE is_deducted = 0 AND date < date("now", "-30 days")'
             );
@@ -350,7 +299,6 @@ class DashboardController {
                 });
             }
 
-            // التحقق من المخزون الحرج
             const stockAlerts = await window.electronAPI.dbQuery(`
                 SELECT name, quantity, min_quantity
                 FROM inventory
@@ -368,7 +316,6 @@ class DashboardController {
                 });
             }
 
-            // عرض التنبيهات
             const container = document.getElementById('alerts');
             container.innerHTML = '';
 
@@ -508,7 +455,10 @@ class DashboardController {
             'settings': 'إعدادات',
             'inventory': 'مخزون',
             'production_orders': 'أمر إنتاج',
-            'machine_maintenance': 'صيانة'
+            'machine_maintenance': 'صيانة',
+            'workspace_groups': 'مجموعة عمل',
+            'workspace_fields': 'حقل',
+            'workspace_images': 'صورة'
         };
         return tables[table] || table;
     }
@@ -562,32 +512,37 @@ class DashboardController {
     }
 
     showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        if (!container) {
+            const newContainer = document.createElement('div');
+            newContainer.id = 'toastContainer';
+            newContainer.style.cssText = 'position: fixed; bottom: 30px; right: 30px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;';
+            document.body.appendChild(newContainer);
+        }
+
         const toast = document.createElement('div');
+        toast.className = `toast-message ${type}`;
+        const icon = type === 'success' ? '✅' : (type === 'warning' ? '⚠️' : '❌');
+        toast.textContent = `${icon} ${message}`;
         toast.style.cssText = `
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
             padding: 14px 24px;
             background: rgba(28, 28, 30, 0.95);
-            border: 1px solid rgba(200, 213, 224, 0.1);
+            border: 1px solid ${type === 'success' ? 'rgba(76, 175, 80, 0.3)' : type === 'warning' ? 'rgba(255, 193, 7, 0.3)' : 'rgba(255, 107, 107, 0.3)'};
             border-radius: 10px;
             color: #F5F5F5;
             font-size: 14px;
-            z-index: 9999;
             backdrop-filter: blur(10px);
             animation: slideUp 0.4s ease;
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
             max-width: 90%;
         `;
         
-        const icon = type === 'success' ? '✅' : '❌';
-        toast.textContent = `${icon} ${message}`;
-        document.body.appendChild(toast);
+        document.getElementById('toastContainer').appendChild(toast);
 
         setTimeout(() => {
             toast.style.animation = 'slideDown 0.4s ease forwards';
             setTimeout(() => {
-                document.body.removeChild(toast);
+                toast.remove();
             }, 400);
         }, 3000);
     }
@@ -609,10 +564,8 @@ class DashboardController {
     }
 }
 
-// تشغيل لوحة التحكم
 document.addEventListener('DOMContentLoaded', async () => {
     const dashboard = new DashboardController();
     await dashboard.initialize();
-    
     window.__dashboard = dashboard;
 });
