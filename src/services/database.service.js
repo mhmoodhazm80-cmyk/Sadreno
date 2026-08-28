@@ -327,6 +327,53 @@ class DatabaseService {
             )
         `);
 
+        // ========================================
+        // جداول منطقة العمل (Workspace)
+        // ========================================
+        
+        // جدول مجموعات منطقة العمل
+        this.db.exec(`
+            CREATE TABLE IF NOT EXISTS workspace_groups (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                icon TEXT,
+                type TEXT CHECK(type IN ('fields', 'images', 'mixed')) DEFAULT 'fields',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // جدول حقول منطقة العمل
+        this.db.exec(`
+            CREATE TABLE IF NOT EXISTS workspace_fields (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_id INTEGER NOT NULL,
+                label TEXT NOT NULL,
+                type TEXT CHECK(type IN ('text', 'number', 'date', 'email', 'phone', 'textarea', 'select', 'checkbox', 'image')) DEFAULT 'text',
+                options TEXT,
+                position INTEGER DEFAULT 0,
+                is_required BOOLEAN DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (group_id) REFERENCES workspace_groups(id) ON DELETE CASCADE
+            )
+        `);
+
+        // جدول صور منطقة العمل
+        this.db.exec(`
+            CREATE TABLE IF NOT EXISTS workspace_images (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_id INTEGER NOT NULL,
+                path TEXT NOT NULL,
+                name TEXT,
+                description TEXT,
+                position INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (group_id) REFERENCES workspace_groups(id) ON DELETE CASCADE
+            )
+        `);
+
         // إنشاء الفهارس
         this.db.exec(`
             CREATE INDEX IF NOT EXISTS idx_workers_factory ON workers(factory_id);
@@ -346,6 +393,8 @@ class DatabaseService {
             CREATE INDEX IF NOT EXISTS idx_inventory_name ON inventory(name);
             CREATE INDEX IF NOT EXISTS idx_production_orders_status ON production_orders(status);
             CREATE INDEX IF NOT EXISTS idx_maintenance_machine ON machine_maintenance(machine_name);
+            CREATE INDEX IF NOT EXISTS idx_workspace_fields_group ON workspace_fields(group_id);
+            CREATE INDEX IF NOT EXISTS idx_workspace_images_group ON workspace_images(group_id);
         `);
 
         this.insertDefaultData();
@@ -355,7 +404,7 @@ class DatabaseService {
     insertDefaultData() {
         const defaultSettings = [
             ['app_name', 'سديم - نظام إدارة المصانع', 'general'],
-            ['app_version', '1.0.0', 'general'],
+            ['app_version', '2.0.0', 'general'],
             ['company_name', '', 'general'],
             ['company_address', '', 'general'],
             ['company_phone', '', 'general'],
@@ -822,11 +871,9 @@ class DatabaseService {
     getDashboardStats() {
         const stats = {};
         
-        // إجمالي العمال
         const workers = this.db.prepare('SELECT COUNT(*) as total FROM workers WHERE is_active = 1').get();
         stats.totalWorkers = workers.total || 0;
         
-        // إجمالي المصروفات الشهرية
         const currentMonth = new Date().toISOString().slice(0, 7);
         const expenses = this.db.prepare(`
             SELECT SUM(amount) as total FROM expenses 
@@ -834,14 +881,12 @@ class DatabaseService {
         `).get(currentMonth);
         stats.monthlyExpenses = expenses.total || 0;
         
-        // الإنتاج اليومي
         const today = new Date().toISOString().slice(0, 10);
         const production = this.db.prepare(`
             SELECT SUM(pieces_produced) as total FROM daily_operations WHERE date = ?
         `).get(today);
         stats.dailyProduction = production.total || 0;
         
-        // نسبة الحضور
         const attendance = this.db.prepare(`
             SELECT 
                 COUNT(*) as total,
@@ -852,15 +897,84 @@ class DatabaseService {
         const present = attendance.present || 0;
         stats.todayAttendance = Math.round((present / total) * 100);
         
-        // الرواتب المستحقة
         const payroll = this.db.prepare('SELECT SUM(net_salary) as total FROM payroll WHERE is_paid = 0').get();
         stats.pendingPayroll = payroll.total || 0;
         
-        // السلف النشطة
         const advances = this.db.prepare('SELECT COUNT(*) as total FROM advances WHERE is_deducted = 0').get();
         stats.activeAdvances = advances.total || 0;
         
         return stats;
+    }
+
+    // ========================================
+    // دوال منطقة العمل (Workspace)
+    // ========================================
+
+    getWorkspaceGroups() {
+        return this.db.prepare('SELECT * FROM workspace_groups ORDER BY created_at DESC').all();
+    }
+
+    getWorkspaceFields(groupId) {
+        return this.db.prepare('SELECT * FROM workspace_fields WHERE group_id = ? ORDER BY position ASC').all(groupId);
+    }
+
+    getWorkspaceImages(groupId) {
+        return this.db.prepare('SELECT * FROM workspace_images WHERE group_id = ? ORDER BY position ASC').all(groupId);
+    }
+
+    createWorkspaceGroup(data) {
+        return this.db.prepare(`
+            INSERT INTO workspace_groups (name, icon, type, created_at, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        `).run(data.name, data.icon || '📁', data.type || 'fields');
+    }
+
+    updateWorkspaceGroup(id, data) {
+        return this.db.prepare(`
+            UPDATE workspace_groups 
+            SET name = ?, icon = ?, type = ?, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        `).run(data.name, data.icon || '📁', data.type || 'fields', id);
+    }
+
+    deleteWorkspaceGroup(id) {
+        return this.db.prepare('DELETE FROM workspace_groups WHERE id = ?').run(id);
+    }
+
+    createWorkspaceField(data) {
+        return this.db.prepare(`
+            INSERT INTO workspace_fields (group_id, label, type, options, position, is_required, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        `).run(
+            data.group_id, data.label, data.type || 'text',
+            data.options || '', data.position || 0, data.is_required || 0
+        );
+    }
+
+    updateWorkspaceField(id, data) {
+        return this.db.prepare(`
+            UPDATE workspace_fields 
+            SET label = ?, type = ?, options = ?, position = ?, is_required = ?, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        `).run(data.label, data.type, data.options, data.position, data.is_required, id);
+    }
+
+    deleteWorkspaceField(id) {
+        return this.db.prepare('DELETE FROM workspace_fields WHERE id = ?').run(id);
+    }
+
+    createWorkspaceImage(data) {
+        return this.db.prepare(`
+            INSERT INTO workspace_images (group_id, path, name, description, position, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        `).run(
+            data.group_id, data.path, data.name || 'صورة',
+            data.description || '', data.position || 0
+        );
+    }
+
+    deleteWorkspaceImage(id) {
+        return this.db.prepare('DELETE FROM workspace_images WHERE id = ?').run(id);
     }
 
     // ========================================
