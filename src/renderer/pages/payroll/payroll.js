@@ -10,10 +10,17 @@ class PayrollController {
         this.readOnlyMode = false;
         this.isCalculating = false;
         this.isLoading = false;
+        this.db = window.__db || null;
     }
 
     async initialize() {
         try {
+            if (!this.db) {
+                this.db = new DatabaseHelper();
+                await this.db.initialize();
+                window.__db = this.db;
+            }
+
             await this.checkReadOnlyMode();
             this.setDefaultPeriod();
             this.setupEventListeners();
@@ -26,14 +33,18 @@ class PayrollController {
             return true;
         } catch (error) {
             console.error('فشل تهيئة الرواتب:', error);
-            await window.electronAPI.logError(error);
+            await window.electronAPI?.logError(error);
             return false;
         }
     }
 
     async checkReadOnlyMode() {
         try {
-            this.readOnlyMode = await window.electronAPI.getReadOnly();
+            if (this.db) {
+                this.readOnlyMode = await this.db.getReadOnly();
+            } else {
+                this.readOnlyMode = await window.electronAPI.getReadOnly();
+            }
             
             if (this.readOnlyMode) {
                 document.getElementById('calculateBtn').disabled = true;
@@ -57,26 +68,22 @@ class PayrollController {
     }
 
     setupEventListeners() {
-        // تبديل التبويبات
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.switchTab(btn.dataset.tab);
             });
         });
 
-        // حساب الرواتب
         document.getElementById('calculateBtn').addEventListener('click', async () => {
             if (!this.readOnlyMode) {
                 await this.calculatePayroll();
             }
         });
 
-        // تصدير
         document.getElementById('exportBtn').addEventListener('click', async () => {
             await this.exportPayroll();
         });
 
-        // تغيير التاريخ
         document.getElementById('periodStart').addEventListener('change', (e) => {
             this.periodStart = new Date(e.target.value);
             this.loadPayrollData();
@@ -519,7 +526,7 @@ class PayrollController {
 
             if (operations.length > 0) {
                 await window.electronAPI.dbTransaction(operations);
-                this.showToast(`✅ تم حساب الرواتب بنجاح\nعدد العمال: ${calculatedCount}`);
+                this.showToast(`✅ تم حساب الرواتب بنجاح\nعدد العمال: ${calculatedCount}`, 'success');
                 await this.loadPayrollData();
                 this.updateSummary();
             }
@@ -550,10 +557,10 @@ class PayrollController {
                 WHERE id = ?
             `, [payrollId]);
 
-            await window.electronAPI.auditLog('update', { table: 'payroll', id: payrollId }, { action: 'pay_salary' });
+            await this.db.logActivity('update', 'payroll', payrollId, { action: 'pay_salary' });
             await this.loadPayrollData();
             this.updateSummary();
-            this.showToast('✅ تم تسديد الراتب بنجاح');
+            this.showToast('✅ تم تسديد الراتب بنجاح', 'success');
         } catch (error) {
             console.error('خطأ في تسديد الراتب:', error);
             this.showToast('❌ حدث خطأ في تسديد الراتب', 'error');
@@ -576,10 +583,10 @@ class PayrollController {
                 WHERE id = ?
             `, [advanceId]);
 
-            await window.electronAPI.auditLog('update', { table: 'advances', id: advanceId }, { action: 'deduct_advance' });
+            await this.db.logActivity('update', 'advances', advanceId, { action: 'deduct_advance' });
             await this.loadAdvancesData();
             this.updateSummary();
-            this.showToast('✅ تم خصم السلفة بنجاح');
+            this.showToast('✅ تم خصم السلفة بنجاح', 'success');
         } catch (error) {
             console.error('خطأ في خصم السلفة:', error);
             this.showToast('❌ حدث خطأ في خصم السلفة', 'error');
@@ -602,10 +609,10 @@ class PayrollController {
                 WHERE id = ?
             `, [loanId]);
 
-            await window.electronAPI.auditLog('update', { table: 'advances', id: loanId }, { action: 'pay_loan' });
+            await this.db.logActivity('update', 'advances', loanId, { action: 'pay_loan' });
             await this.loadLoansData();
             this.updateSummary();
-            this.showToast('✅ تم تسديد القرض بنجاح');
+            this.showToast('✅ تم تسديد القرض بنجاح', 'success');
         } catch (error) {
             console.error('خطأ في تسديد القرض:', error);
             this.showToast('❌ حدث خطأ في تسديد القرض', 'error');
@@ -631,12 +638,12 @@ class PayrollController {
                 'الحالة': p.is_paid ? 'مسددة' : 'قيد الانتظار'
             }));
 
-            const result = await window.electronAPI.exportExcel(exportData, {
+            const result = await this.db.exportExcel(exportData, {
                 title: 'تقرير الرواتب'
             });
 
             if (result.success) {
-                this.showToast('📊 تم تصدير التقرير بنجاح');
+                this.showToast('📊 تم تصدير التقرير بنجاح', 'success');
             } else {
                 this.showToast('❌ فشل تصدير التقرير: ' + result.message, 'error');
             }
@@ -691,35 +698,39 @@ class PayrollController {
     }
 
     showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        if (!container) {
+            const newContainer = document.createElement('div');
+            newContainer.id = 'toastContainer';
+            newContainer.style.cssText = 'position: fixed; bottom: 30px; right: 30px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;';
+            document.body.appendChild(newContainer);
+        }
+
         const toast = document.createElement('div');
+        toast.className = `toast-message ${type}`;
+        const icon = type === 'success' ? '✅' : (type === 'warning' ? '⚠️' : '❌');
+        toast.textContent = `${icon} ${message}`;
         toast.style.cssText = `
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
             padding: 14px 24px;
             background: rgba(28, 28, 30, 0.95);
-            border: 1px solid rgba(200, 213, 224, 0.1);
+            border: 1px solid ${type === 'success' ? 'rgba(76, 175, 80, 0.3)' : type === 'warning' ? 'rgba(255, 193, 7, 0.3)' : 'rgba(255, 107, 107, 0.3)'};
             border-radius: 10px;
             color: #F5F5F5;
             font-size: 14px;
-            z-index: 9999;
             backdrop-filter: blur(10px);
             animation: slideUp 0.4s ease;
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
             max-width: 90%;
-            white-space: pre-line;
         `;
         
-        const icon = type === 'success' ? '✅' : (type === 'warning' ? '⚠️' : '❌');
-        toast.textContent = `${icon} ${message}`;
-        document.body.appendChild(toast);
+        document.getElementById('toastContainer').appendChild(toast);
 
         setTimeout(() => {
             toast.style.animation = 'slideDown 0.4s ease forwards';
             setTimeout(() => {
-                document.body.removeChild(toast);
+                toast.remove();
             }, 400);
-        }, 4000);
+        }, 3000);
     }
 
     formatDate(date) {
@@ -738,7 +749,6 @@ class PayrollController {
     }
 }
 
-// تشغيل الرواتب
 document.addEventListener('DOMContentLoaded', async () => {
     const payroll = new PayrollController();
     await payroll.initialize();
