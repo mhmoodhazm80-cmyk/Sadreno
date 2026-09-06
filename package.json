@@ -40,9 +40,7 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "node_modules/electron/dist/electron.ico",
-      "signingHashAlgorithms": null,
-      "sign": null
+      "icon": "node_modules/electron/dist/electron.ico"
     },
     "linux": {
       "target": "AppImage",
@@ -58,11 +56,9 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "سديم",
-      "installerIcon": "node_modules/electron/dist/electron.ico",
-      "uninstallerIcon": "node_modules/electron/dist/electron.ico",
       "perMachine": true,
-      "signingHashAlgorithms": null,
-      "sign": null
+      "installerIcon": "node_modules/electron/dist/electron.ico",
+      "uninstallerIcon": "node_modules/electron/dist/electron.ico"
     },
     "files": [
       "src/**/*",
