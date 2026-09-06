@@ -5,18 +5,20 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-windows:
     runs-on: windows-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
+        cache: 'npm'
     
     - name: Install Dependencies
       run: npm install
@@ -25,22 +27,50 @@ jobs:
       run: npm run build:win
     
     - name: Upload Windows Build Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: sadeem-windows
         path: dist/
         retention-days: 30
+        compression-level: 9
+
+  build-windows-32:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install Dependencies
+      run: npm install
+    
+    - name: Build Windows 32-bit App
+      run: npm run build:win32
+    
+    - name: Upload Windows 32-bit Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: sadeem-windows-32
+        path: dist/
+        retention-days: 30
+        compression-level: 9
 
   build-linux:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
+        cache: 'npm'
     
     - name: Install Dependencies
       run: npm install
@@ -49,22 +79,24 @@ jobs:
       run: npm run build:linux
     
     - name: Upload Linux Build Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: sadeem-linux
         path: dist/
         retention-days: 30
+        compression-level: 9
 
   build-mac:
     runs-on: macos-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
+        cache: 'npm'
     
     - name: Install Dependencies
       run: npm install
@@ -73,33 +105,40 @@ jobs:
       run: npm run build:mac
     
     - name: Upload Mac Build Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: sadeem-mac
         path: dist/
         retention-days: 30
+        compression-level: 9
 
   create-release:
-    needs: [build-windows, build-linux, build-mac]
+    needs: [build-windows, build-windows-32, build-linux, build-mac]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
     - name: Download all artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: artifacts/
     
+    - name: List artifacts
+      run: ls -la artifacts/
+    
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         name: Sadeem v${{ github.run_number }}
         tag_name: v${{ github.run_number }}
         draft: false
         prerelease: false
+        generate_release_notes: true
         files: |
           artifacts/sadeem-windows/**/*.exe
+          artifacts/sadeem-windows-32/**/*.exe
           artifacts/sadeem-linux/**/*.AppImage
           artifacts/sadeem-mac/**/*.dmg
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
