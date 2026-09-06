@@ -1,7 +1,6 @@
-const { app, BrowserWindow, ipcMain, Menu, shell, dialog, systemPreferences, globalShortcut } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, shell, dialog, globalShortcut } = require('electron');
 const path = require('path');
 const fs = require('fs-extra');
-const crypto = require('crypto');
 const { DatabaseService } = require('../services/database.service');
 const { LicenseService } = require('../services/license.service');
 const { SecurityService } = require('../services/security.service');
@@ -24,7 +23,6 @@ class SadeemApplication {
         this.currentPage = 'dashboard';
         this.shortcuts = [];
         this.navigationHistory = [];
-        this.backupInterval = null;
         this.auditLogEnabled = true;
         this.isLicenseValid = false;
     }
@@ -107,9 +105,6 @@ class SadeemApplication {
     async exportPDF(data, options) {
         try {
             const PDFDocument = require('pdfkit');
-            const fs = require('fs-extra');
-            const path = require('path');
-            
             const result = await dialog.showSaveDialog(this.mainWindow, {
                 title: 'حفظ ملف PDF',
                 defaultPath: `report_${new Date().toISOString().split('T')[0]}.pdf`,
@@ -129,18 +124,6 @@ class SadeemApplication {
             
             const writeStream = fs.createWriteStream(result.filePath);
             doc.pipe(writeStream);
-
-            try {
-                const fontPath = path.join(__dirname, '../assets/fonts/NotoSansArabic-Regular.ttf');
-                if (await fs.pathExists(fontPath)) {
-                    doc.registerFont('Arabic', fontPath);
-                    doc.font('Arabic');
-                } else {
-                    doc.font('Helvetica');
-                }
-            } catch (e) {
-                doc.font('Helvetica');
-            }
 
             doc.fontSize(20)
                .text('سديم - نظام إدارة المصانع', { align: 'center' })
@@ -223,7 +206,6 @@ class SadeemApplication {
     async exportExcel(data, options) {
         try {
             const XLSX = require('xlsx');
-            const fs = require('fs-extra');
             
             const result = await dialog.showSaveDialog(this.mainWindow, {
                 title: 'حفظ ملف Excel',
@@ -326,7 +308,6 @@ class SadeemApplication {
     // إعدادات أحداث التطبيق
     // ========================================
     setupAppEvents() {
-        // منع إغلاق التطبيق مباشرة
         app.on('before-quit', (e) => {
             if (!this.isQuitting) {
                 e.preventDefault();
@@ -334,31 +315,18 @@ class SadeemApplication {
             }
         });
 
-        // عند إغلاق جميع النوافذ
         app.on('window-all-closed', () => {
             if (process.platform !== 'darwin') {
                 app.quit();
             }
         });
 
-        // عند تنشيط التطبيق (macOS)
         app.on('activate', () => {
             if (BrowserWindow.getAllWindows().length === 0) {
                 this.createMainWindow();
             }
         });
 
-        // عند تغيير وضع ملء الشاشة
-        app.on('browser-window-created', (event, window) => {
-            window.on('enter-full-screen', () => {
-                this.mainWindow?.webContents.send('app:fullscreen', true);
-            });
-            window.on('leave-full-screen', () => {
-                this.mainWindow?.webContents.send('app:fullscreen', false);
-            });
-        });
-
-        // التعامل مع الأخطاء غير المتوقعة
         process.on('uncaughtException', (error) => {
             console.error('❌ خطأ غير متوقع:', error);
             this.logError(error);
@@ -390,9 +358,7 @@ class SadeemApplication {
     // إعدادات معالجات IPC
     // ========================================
     setupIPCHandlers() {
-        // ========================================
         // التحكم في النافذة
-        // ========================================
         ipcMain.handle('window:minimize', () => {
             const focusedWindow = BrowserWindow.getFocusedWindow();
             if (focusedWindow && !focusedWindow.isDestroyed()) {
@@ -423,9 +389,7 @@ class SadeemApplication {
             return focusedWindow?.isMaximized() || false;
         });
 
-        // ========================================
         // نظام التنقل
-        // ========================================
         ipcMain.handle('navigation:navigate', (event, page) => {
             this.navigateTo(page);
         });
@@ -438,9 +402,7 @@ class SadeemApplication {
             return this.currentPage;
         });
 
-        // ========================================
-        // نظام التفعيل المتقدم
-        // ========================================
+        // نظام التفعيل
         ipcMain.handle('license:validate', async () => {
             return await this.licenseService.validateLicense();
         });
@@ -467,9 +429,6 @@ class SadeemApplication {
             return await this.licenseService.getTrialInformation();
         });
 
-        // ========================================
-        // نظام التشفير - توليد الأكواد
-        // ========================================
         ipcMain.handle('license:generateKey', async (event, data) => {
             return await this.generateLicenseKey(data);
         });
@@ -490,18 +449,10 @@ class SadeemApplication {
             return await this.securityService.getHWID();
         });
 
-        // ========================================
         // عمليات قاعدة البيانات
-        // ========================================
         ipcMain.handle('db:query', async (event, sql, params) => {
-            if (this.readOnlyMode && sql.toUpperCase().includes('INSERT')) {
-                throw new Error('وضع القراءة فقط - لا يمكن إضافة بيانات');
-            }
-            if (this.readOnlyMode && sql.toUpperCase().includes('UPDATE')) {
-                throw new Error('وضع القراءة فقط - لا يمكن تعديل بيانات');
-            }
-            if (this.readOnlyMode && sql.toUpperCase().includes('DELETE')) {
-                throw new Error('وضع القراءة فقط - لا يمكن حذف بيانات');
+            if (this.readOnlyMode && (sql.toUpperCase().includes('INSERT') || sql.toUpperCase().includes('UPDATE') || sql.toUpperCase().includes('DELETE'))) {
+                throw new Error('وضع القراءة فقط - لا يمكن تعديل البيانات');
             }
             return await this.databaseService.query(sql, params);
         });
@@ -520,9 +471,7 @@ class SadeemApplication {
             return await this.databaseService.transaction(operations);
         });
 
-        // ========================================
         // استيراد وتصدير
-        // ========================================
         ipcMain.handle('import:word', async (event, filePath) => {
             if (this.readOnlyMode) {
                 throw new Error('وضع القراءة فقط - لا يمكن استيراد البيانات');
@@ -545,9 +494,7 @@ class SadeemApplication {
             return await this.exportExcel(data, options);
         });
 
-        // ========================================
         // النسخ الاحتياطي
-        // ========================================
         ipcMain.handle('backup:create', async () => {
             return await this.databaseService.createBackup();
         });
@@ -559,9 +506,7 @@ class SadeemApplication {
             return await this.databaseService.restoreBackup(backupPath);
         });
 
-        // ========================================
         // معلومات النظام
-        // ========================================
         ipcMain.handle('system:getInfo', async () => {
             return {
                 version: app.getVersion(),
@@ -584,9 +529,7 @@ class SadeemApplication {
             return this.readOnlyMode;
         });
 
-        // ========================================
         // سجل العمليات
-        // ========================================
         ipcMain.handle('audit:log', async (event, action, target, details) => {
             if (this.auditLogEnabled) {
                 await this.databaseService.run(`
@@ -604,17 +547,13 @@ class SadeemApplication {
             `, [limit]);
         });
 
-        // ========================================
         // معالجة الأخطاء
-        // ========================================
         ipcMain.handle('error:log', async (event, error) => {
             console.error('خطأ من عملية التصيير:', error);
             await this.logError(error);
         });
 
-        // ========================================
         // اكتمال شاشة البداية
-        // ========================================
         ipcMain.handle('splash:complete', async () => {
             console.log('✅ تم استلام إشارة اكتمال شاشة البداية');
             this.splashComplete = true;
@@ -787,8 +726,7 @@ class SadeemApplication {
                     { label: 'استعادة نسخة', click: () => this.restoreBackup() },
                     { type: 'separator' },
                     { label: 'استيراد Excel', click: () => this.importExcelFile() },
-                    { label: 'استيراد Word', click: () => this.importWordFile() },
-                    { label: 'تصدير البيانات', enabled: !isReadOnly }
+                    { label: 'استيراد Word', click: () => this.importWordFile() }
                 ]
             },
             {
@@ -805,8 +743,6 @@ class SadeemApplication {
                 label: 'مساعدة',
                 submenu: [
                     { label: 'الدعم الفني', click: () => this.showSupportInfo() },
-                    { label: 'توثيق النظام', click: () => this.openDocumentation() },
-                    { type: 'separator' },
                     { label: 'اختصارات لوحة المفاتيح', click: () => this.showShortcuts() },
                     { label: 'مطور', click: () => this.openDeveloperTools() }
                 ]
@@ -909,34 +845,6 @@ class SadeemApplication {
             message: shortcuts.join('\n'),
             type: 'info'
         });
-    }
-
-    // ========================================
-    // معالجات التحكم في النافذة
-    // ========================================
-    handleMinimize() {
-        const focusedWindow = BrowserWindow.getFocusedWindow();
-        if (focusedWindow && !focusedWindow.isDestroyed()) {
-            focusedWindow.minimize();
-        }
-    }
-
-    handleMaximize() {
-        const focusedWindow = BrowserWindow.getFocusedWindow();
-        if (focusedWindow && !focusedWindow.isDestroyed()) {
-            if (focusedWindow.isMaximized()) {
-                focusedWindow.unmaximize();
-            } else {
-                focusedWindow.maximize();
-            }
-        }
-    }
-
-    handleClose() {
-        const focusedWindow = BrowserWindow.getFocusedWindow();
-        if (focusedWindow && !focusedWindow.isDestroyed()) {
-            focusedWindow.close();
-        }
     }
 
     // ========================================
@@ -1097,19 +1005,9 @@ class SadeemApplication {
         });
     }
 
-    openDocumentation() {
-        shell.openExternal('https://docs.sadeem.com');
-    }
-
     openDeveloperTools() {
         if (this.mainWindow && !this.mainWindow.isDestroyed()) {
             this.mainWindow.webContents.openDevTools();
-        }
-    }
-
-    handleSystemThemeChange() {
-        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-            this.mainWindow.webContents.send('system:theme-change');
         }
     }
 
