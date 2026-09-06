@@ -34,6 +34,8 @@ jobs:
         CSC_IDENTITY_AUTO_DISCOVERY: false
         CSC_KEY_PASSWORD: ""
         CSC_LINK: ""
+        WIN_CSC_LINK: ""
+        WIN_CSC_KEY_PASSWORD: ""
     
     - name: Upload Windows Build Artifact
       uses: actions/upload-artifact@v4
