@@ -36,6 +36,7 @@ jobs:
         CSC_LINK: ""
         WIN_CSC_LINK: ""
         WIN_CSC_KEY_PASSWORD: ""
+        SIGN: false
     
     - name: Upload Windows Build Artifact
       uses: actions/upload-artifact@v4
@@ -96,6 +97,8 @@ jobs:
     
     - name: Build Mac App
       run: npm run build:mac
+      env:
+        CSC_IDENTITY_AUTO_DISCOVERY: false
     
     - name: Upload Mac Build Artifact
       uses: actions/upload-artifact@v4
