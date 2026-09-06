@@ -46,24 +46,18 @@ const validListenChannels = [
 ];
 
 contextBridge.exposeInMainWorld('electronAPI', {
-    // ========================================
     // التحكم في النافذة
-    // ========================================
     minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
     maximizeWindow: () => ipcRenderer.invoke('window:maximize'),
     closeWindow: () => ipcRenderer.invoke('window:close'),
     isWindowMaximized: () => ipcRenderer.invoke('window:isMaximized'),
     
-    // ========================================
     // نظام التنقل
-    // ========================================
     navigate: (page) => ipcRenderer.invoke('navigation:navigate', page),
     navigateBack: () => ipcRenderer.invoke('navigation:back'),
     getCurrentPage: () => ipcRenderer.invoke('navigation:getCurrentPage'),
     
-    // ========================================
     // نظام التفعيل والترخيص
-    // ========================================
     validateLicense: () => ipcRenderer.invoke('license:validate'),
     activateLicense: (licenseKey) => {
         if (typeof licenseKey !== 'string' || !licenseKey.trim()) {
@@ -74,31 +68,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getLicenseStatus: () => ipcRenderer.invoke('license:getStatus'),
     getTrialInfo: () => ipcRenderer.invoke('license:getTrialInfo'),
     
-    // ========================================
     // توليد والتحقق من الأكواد
-    // ========================================
     generateLicenseKey: (data) => ipcRenderer.invoke('license:generateKey', data),
     verifyLicenseKey: (licenseKey, deviceHWID) => ipcRenderer.invoke('license:verifyKey', licenseKey, deviceHWID),
     getLicenseRemainingDays: (licenseKey) => ipcRenderer.invoke('license:getRemainingDays', licenseKey),
     isLicenseExpired: (licenseKey) => ipcRenderer.invoke('license:isExpired', licenseKey),
     getHWID: () => ipcRenderer.invoke('license:getHWID'),
     
-    // ========================================
     // عمليات قاعدة البيانات
-    // ========================================
     dbQuery: (sql, params = []) => {
         if (typeof sql !== 'string' || !sql.trim()) {
             throw new Error('استعلام SQL مطلوب');
         }
         if (!Array.isArray(params)) {
             throw new Error('يجب أن تكون المعلمات مصفوفة');
-        }
-        const dangerous = ['DROP', 'DELETE', 'UPDATE', 'INSERT', 'ALTER', 'CREATE'];
-        const upperSql = sql.toUpperCase();
-        for (const word of dangerous) {
-            if (upperSql.includes(word) && !upperSql.includes('SELECT')) {
-                throw new Error(`استعلام غير مسموح به: ${word}`);
-            }
         }
         return ipcRenderer.invoke('db:query', sql, params);
     },
@@ -123,9 +106,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         return ipcRenderer.invoke('db:transaction', operations);
     },
     
-    // ========================================
     // استيراد وتصدير
-    // ========================================
     importWord: (filePath) => {
         if (!filePath || typeof filePath !== 'string') {
             throw new Error('مسار الملف مطلوب');
@@ -151,9 +132,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         return ipcRenderer.invoke('export:excel', data, options);
     },
     
-    // ========================================
     // النسخ الاحتياطي
-    // ========================================
     createBackup: () => ipcRenderer.invoke('backup:create'),
     restoreBackup: (backupPath) => {
         if (typeof backupPath !== 'string' || !backupPath.trim()) {
@@ -162,16 +141,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
         return ipcRenderer.invoke('backup:restore', backupPath);
     },
     
-    // ========================================
     // معلومات النظام
-    // ========================================
     getSystemInfo: () => ipcRenderer.invoke('system:getInfo'),
     getHWID: () => ipcRenderer.invoke('system:getHWID'),
     getReadOnly: () => ipcRenderer.invoke('system:getReadOnly'),
     
-    // ========================================
     // سجل العمليات
-    // ========================================
     auditLog: (action, target, details) => {
         return ipcRenderer.invoke('audit:log', action, target, details);
     },
@@ -179,9 +154,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         return ipcRenderer.invoke('audit:getLogs', limit);
     },
     
-    // ========================================
     // تسجيل الأخطاء
-    // ========================================
     logError: (error) => {
         const errorObj = {
             message: error.message || String(error),
@@ -191,14 +164,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
         return ipcRenderer.invoke('error:log', errorObj);
     },
     
-    // ========================================
     // أحداث شاشة البداية
-    // ========================================
     splashComplete: () => ipcRenderer.invoke('splash:complete'),
     
-    // ========================================
     // الاستماع للأحداث
-    // ========================================
     on: (channel, callback) => {
         if (!validListenChannels.includes(channel)) {
             throw new Error(`قناة غير صالحة: ${channel}`);
@@ -211,9 +180,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         return () => ipcRenderer.off(channel, listener);
     },
     
-    // ========================================
     // إزالة المستمعين
-    // ========================================
     off: (channel, callback) => {
         if (!validListenChannels.includes(channel)) {
             throw new Error(`قناة غير صالحة: ${channel}`);
@@ -224,9 +191,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.off(channel, callback);
     },
     
-    // ========================================
     // إرسال حدث
-    // ========================================
     send: (channel, ...args) => {
         if (!validChannels.includes(channel)) {
             throw new Error(`قناة غير صالحة: ${channel}`);
