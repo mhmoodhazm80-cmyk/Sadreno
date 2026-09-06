@@ -7,6 +7,8 @@
     "start": "electron .",
     "build:win": "electron-builder --win --x64",
     "build:win32": "electron-builder --win --ia32",
+    "build:linux": "electron-builder --linux",
+    "build:mac": "electron-builder --mac",
     "dist": "electron-builder --win --x64 --ia32",
     "postinstall": "electron-builder install-app-deps"
   },
@@ -24,7 +26,9 @@
     "pdfkit": "^0.14.0",
     "xlsx": "^0.18.5",
     "fs-extra": "^11.1.1",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "mammoth": "^1.6.0",
+    "docx": "^8.2.2"
   },
   "build": {
     "appId": "com.sadeem.factory.pro",
@@ -36,6 +40,14 @@
     "win": {
       "target": "nsis",
       "icon": "src/assets/logo.ico"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "src/assets/logo.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "src/assets/logo.icns"
     },
     "nsis": {
       "oneClick": false,
