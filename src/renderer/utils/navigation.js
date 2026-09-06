@@ -10,7 +10,8 @@ class NavigationSystem {
             { id: 'expenses', name: 'المصروفات', icon: '💸', shortcut: 'E', path: 'expenses/expenses.html' },
             { id: 'workspace', name: 'منطقة العمل', icon: '🔧', shortcut: 'A', path: 'workspace/workspace.html' },
             { id: 'tutorial', name: 'دليل الاستخدام', icon: '📖', shortcut: 'T', path: 'tutorial/tutorial.html' },
-            { id: 'settings', name: 'الإعدادات', icon: '⚙️', shortcut: 'S', path: 'settings/settings.html' }
+            { id: 'settings', name: 'الإعدادات', icon: '⚙️', shortcut: 'S', path: 'settings/settings.html' },
+            { id: 'generator', name: 'مولد الأكواد', icon: '🔑', shortcut: 'G', path: 'generator/generator.html' }
         ];
         this.isOpen = false;
         this.shortcuts = {};
