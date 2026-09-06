@@ -1,30 +1,209 @@
-name: Build Electron App
+name: Build Sadeem Application
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
-
+    
     steps:
-    - uses: actions/checkout@v4
-
+    - uses: actions/checkout@v3
+    
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v3
       with:
-        node-version: 20
-
+        node-version: '18'
+    
     - name: Install Dependencies
-      run: npm install --legacy-peer-deps
-
-    - name: Build Electron App
+      run: npm install
+    
+    - name: Build Windows App
       run: npm run build:win
-      continue-on-error: true
-
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
+    
+    - name: Upload Windows Build Artifact
+      uses: actions/upload-artifact@v3
       with:
-        name: Sadeem-Windows-App
+        name: sadeem-windows
         path: dist/
+        retention-days: 30
+
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install Dependencies
+      run: npm install
+    
+    - name: Build Linux App
+      run: npm run build:linux
+    
+    - name: Upload Linux Build Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: sadeem-linux
+        path: dist/
+        retention-days: 30
+
+  build-mac:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install Dependencies
+      run: npm install
+    
+    - name: Build Mac App
+      run: npm run build:mac
+    
+    - name: Upload Mac Build Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: sadeem-mac
+        path: dist/
+        retention-days: 30
+
+  create-release:
+    needs: [build-windows, build-linux, build-mac]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts/
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: Sadeem v${{ github.run_number }}
+        tag_name: v${{ github.run_number }}
+        draft: false
+        prerelease: false
+        files: |
+          artifacts/sadeem-windows/**/*.exe
+          artifacts/sadeem-linux/**/*.AppImage
+          artifacts/sadeem-mac/**/*.dmg
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}name: Build Sadeem Application
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install Dependencies
+      run: npm install
+    
+    - name: Build Windows App
+      run: npm run build:win
+    
+    - name: Upload Windows Build Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: sadeem-windows
+        path: dist/
+        retention-days: 30
+
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install Dependencies
+      run: npm install
+    
+    - name: Build Linux App
+      run: npm run build:linux
+    
+    - name: Upload Linux Build Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: sadeem-linux
+        path: dist/
+        retention-days: 30
+
+  build-mac:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install Dependencies
+      run: npm install
+    
+    - name: Build Mac App
+      run: npm run build:mac
+    
+    - name: Upload Mac Build Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: sadeem-mac
+        path: dist/
+        retention-days: 30
+
+  create-release:
+    needs: [build-windows, build-linux, build-mac]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts/
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: Sadeem v${{ github.run_number }}
+        tag_name: v${{ github.run_number }}
+        draft: false
+        prerelease: false
+        files: |
+          artifacts/sadeem-windows/**/*.exe
+          artifacts/sadeem-linux/**/*.AppImage
+          artifacts/sadeem-mac/**/*.dmg
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
