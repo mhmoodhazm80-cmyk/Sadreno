@@ -323,6 +323,70 @@ class SadeemApplication {
     }
 
     // ========================================
+    // إعدادات أحداث التطبيق
+    // ========================================
+    setupAppEvents() {
+        // منع إغلاق التطبيق مباشرة
+        app.on('before-quit', (e) => {
+            if (!this.isQuitting) {
+                e.preventDefault();
+                this.handleAppClose();
+            }
+        });
+
+        // عند إغلاق جميع النوافذ
+        app.on('window-all-closed', () => {
+            if (process.platform !== 'darwin') {
+                app.quit();
+            }
+        });
+
+        // عند تنشيط التطبيق (macOS)
+        app.on('activate', () => {
+            if (BrowserWindow.getAllWindows().length === 0) {
+                this.createMainWindow();
+            }
+        });
+
+        // عند تغيير وضع ملء الشاشة
+        app.on('browser-window-created', (event, window) => {
+            window.on('enter-full-screen', () => {
+                this.mainWindow?.webContents.send('app:fullscreen', true);
+            });
+            window.on('leave-full-screen', () => {
+                this.mainWindow?.webContents.send('app:fullscreen', false);
+            });
+        });
+
+        // التعامل مع الأخطاء غير المتوقعة
+        process.on('uncaughtException', (error) => {
+            console.error('❌ خطأ غير متوقع:', error);
+            this.logError(error);
+        });
+
+        process.on('unhandledRejection', (reason) => {
+            console.error('❌ رفض غير معالج:', reason);
+            this.logError(reason);
+        });
+    }
+
+    // ========================================
+    // معالج إغلاق التطبيق
+    // ========================================
+    async handleAppClose() {
+        if (this.isQuitting) return;
+        this.isQuitting = true;
+
+        try {
+            await this.cleanupApplication();
+            app.exit(0);
+        } catch (error) {
+            console.error('❌ خطأ أثناء الإغلاق:', error);
+            app.exit(1);
+        }
+    }
+
+    // ========================================
     // إعدادات معالجات IPC
     // ========================================
     setupIPCHandlers() {
