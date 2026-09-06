@@ -5,11 +5,11 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
-    "build:win": "electron-builder --win --x64 --publish never",
-    "build:win32": "electron-builder --win --ia32 --publish never",
+    "build:win": "electron-builder --win --x64 --publish never --no-sign",
+    "build:win32": "electron-builder --win --ia32 --publish never --no-sign",
     "build:linux": "electron-builder --linux --publish never",
     "build:mac": "electron-builder --mac --publish never",
-    "dist": "electron-builder --win --x64 --ia32 --publish never",
+    "dist": "electron-builder --win --x64 --ia32 --publish never --no-sign",
     "postinstall": "electron-builder install-app-deps"
   },
   "author": "Sadeem Team - محمود حازم & مصطفى رينو",
