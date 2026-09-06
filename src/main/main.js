@@ -26,197 +26,84 @@ class SadeemApplication {
         this.navigationHistory = [];
         this.backupInterval = null;
         this.auditLogEnabled = true;
-        this.workspaceData = null;
+        this.isLicenseValid = false;
     }
 
     // ========================================
-    // نظام التشفير المتقدم - PBKDF2/SHA-512 + HWID Scrambling
+    // نظام التشفير المتقدم
     // ========================================
     
-    deriveKeyFromHWID(hwid, salt, iterations = 100000) {
+    async initializeEncryption() {
         try {
-            const derivedKey = crypto.pbkdf2Sync(
-                hwid,
-                salt,
-                iterations,
-                64,
-                'sha512'
-            );
-            return derivedKey.toString('hex');
+            console.log('🔐 تهيئة نظام التشفير المتقدم...');
+            this.encryptionService = new AdvancedEncryptionService();
+            await this.encryptionService.initialize();
+            console.log('✅ تم تهيئة نظام التشفير المتقدم');
+            return true;
         } catch (error) {
-            console.error('خطأ في اشتقاق المفتاح:', error);
+            console.error('❌ فشل تهيئة نظام التشفير:', error);
             throw error;
         }
     }
 
-    applyScramblingMatrix(data, hwid) {
+    async generateLicenseKey(data) {
         try {
-            const matrix = this.generateScramblingMatrix(hwid);
-            const result = Buffer.alloc(data.length);
-            
-            for (let i = 0; i < data.length; i++) {
-                const index = (i + matrix[i % 256] + Math.floor(i / 256)) % 256;
-                result[i] = data[i] ^ matrix[index];
-                
-                if (i > 0) {
-                    result[i] = (result[i] + result[i-1]) % 256;
-                }
-            }
-            
-            return result;
+            return this.encryptionService.generateLicenseKey(data);
         } catch (error) {
-            console.error('خطأ في تطبيق مصفوفة الخلط:', error);
+            console.error('❌ خطأ في توليد كود الترخيص:', error);
             throw error;
         }
     }
 
-    reverseScramblingMatrix(data, hwid) {
+    async verifyLicenseKey(licenseKey, deviceHWID = null) {
         try {
-            const matrix = this.generateScramblingMatrix(hwid);
-            const result = Buffer.alloc(data.length);
-            
-            for (let i = data.length - 1; i >= 0; i--) {
-                let value = data[i];
-                if (i > 0) {
-                    value = (value - result[i-1] + 256) % 256;
-                }
-                
-                const index = (i + matrix[i % 256] + Math.floor(i / 256)) % 256;
-                result[i] = value ^ matrix[index];
-            }
-            
-            return result;
+            const hwid = deviceHWID || await this.securityService.getHWID();
+            return this.encryptionService.verifyLicenseKey(licenseKey, hwid);
         } catch (error) {
-            console.error('خطأ في عكس مصفوفة الخلط:', error);
-            throw error;
-        }
-    }
-
-    generateScramblingMatrix(hwid) {
-        const matrix = new Uint8Array(256);
-        const seed = hwid.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        
-        for (let i = 0; i < 256; i++) {
-            const index = (i * 7 + seed * 13 + i * i * 3) % 256;
-            matrix[i] = (i * 13 + seed * 7 + index * 5) % 256;
-        }
-        
-        return matrix;
-    }
-
-    applyXORShift(data, key) {
-        try {
-            const result = Buffer.alloc(data.length);
-            const keyBuffer = Buffer.from(key, 'hex');
-            
-            for (let i = 0; i < data.length; i++) {
-                const keyByte = keyBuffer[i % keyBuffer.length];
-                const shift = (i * 7 + keyByte) % 8;
-                
-                let value = data[i] ^ keyByte;
-                value = ((value << shift) | (value >> (8 - shift))) & 0xFF;
-                
-                result[i] = value;
-            }
-            
-            return result;
-        } catch (error) {
-            console.error('خطأ في تطبيق XOR Shift:', error);
-            throw error;
-        }
-    }
-
-    reverseXORShift(data, key) {
-        try {
-            const result = Buffer.alloc(data.length);
-            const keyBuffer = Buffer.from(key, 'hex');
-            
-            for (let i = 0; i < data.length; i++) {
-                const keyByte = keyBuffer[i % keyBuffer.length];
-                const shift = (i * 7 + keyByte) % 8;
-                
-                let value = ((data[i] >> shift) | (data[i] << (8 - shift))) & 0xFF;
-                value = value ^ keyByte;
-                
-                result[i] = value;
-            }
-            
-            return result;
-        } catch (error) {
-            console.error('خطأ في عكس XOR Shift:', error);
-            throw error;
-        }
-    }
-
-    encryptLicenseData(data, hwid) {
-        try {
-            const jsonData = JSON.stringify(data);
-            const dataBuffer = Buffer.from(jsonData, 'utf8');
-            
-            const salt = crypto.randomBytes(32);
-            const derivedKey = this.deriveKeyFromHWID(hwid, salt);
-            const scrambled = this.applyScramblingMatrix(dataBuffer, hwid);
-            const encrypted = this.applyXORShift(scrambled, derivedKey);
-            
-            const result = Buffer.concat([
-                salt,
-                encrypted
-            ]);
-            
-            return result.toString('base64');
-        } catch (error) {
-            console.error('خطأ في تشفير بيانات الترخيص:', error);
-            throw error;
-        }
-    }
-
-    decryptLicenseData(encryptedData, hwid) {
-        try {
-            const encryptedBuffer = Buffer.from(encryptedData, 'base64');
-            const salt = encryptedBuffer.slice(0, 32);
-            const data = encryptedBuffer.slice(32);
-            
-            const derivedKey = this.deriveKeyFromHWID(hwid, salt);
-            const unscrambled = this.reverseXORShift(data, derivedKey);
-            const decrypted = this.reverseScramblingMatrix(unscrambled, hwid);
-            
-            const jsonString = decrypted.toString('utf8');
-            return JSON.parse(jsonString);
-        } catch (error) {
-            console.error('خطأ في فك تشفير بيانات الترخيص:', error);
-            throw error;
-        }
-    }
-
-    generateSignature(data, hwid) {
-        try {
-            const hash = crypto.createHash('sha512');
-            hash.update(data);
-            hash.update(hwid);
-            hash.update('SADEEM_SECURE_SALT_2024');
-            return hash.digest('hex');
-        } catch (error) {
-            console.error('خطأ في توليد التوقيع:', error);
-            throw error;
-        }
-    }
-
-    verifySignature(data, signature, hwid) {
-        try {
-            const computedSignature = this.generateSignature(data, hwid);
-            return crypto.timingSafeEqual(
-                Buffer.from(computedSignature),
-                Buffer.from(signature)
-            );
-        } catch (error) {
-            console.error('خطأ في التحقق من التوقيع:', error);
-            return false;
+            console.error('❌ خطأ في التحقق من كود الترخيص:', error);
+            return { valid: false, message: 'خطأ في التحقق' };
         }
     }
 
     // ========================================
-    // تصدير PDF مع دعم اللغة العربية
+    // استيراد Word و Excel
     // ========================================
+    
+    async importWord(filePath) {
+        try {
+            const mammoth = require('mammoth');
+            const result = await mammoth.extractRawText({ path: filePath });
+            const text = result.value;
+            const lines = text.split('\n').filter(line => line.trim());
+            const data = lines.map(line => {
+                const parts = line.split('\t');
+                return parts;
+            });
+            return data;
+        } catch (error) {
+            console.error('خطأ في استيراد Word:', error);
+            throw error;
+        }
+    }
+
+    async importExcel(filePath) {
+        try {
+            const XLSX = require('xlsx');
+            const workbook = XLSX.readFile(filePath);
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const data = XLSX.utils.sheet_to_json(worksheet);
+            return data;
+        } catch (error) {
+            console.error('خطأ في استيراد Excel:', error);
+            throw error;
+        }
+    }
+
+    // ========================================
+    // تصدير PDF و Excel
+    // ========================================
+    
     async exportPDF(data, options) {
         try {
             const PDFDocument = require('pdfkit');
@@ -333,9 +220,6 @@ class SadeemApplication {
         }
     }
 
-    // ========================================
-    // تصدير Excel
-    // ========================================
     async exportExcel(data, options) {
         try {
             const XLSX = require('xlsx');
@@ -389,23 +273,6 @@ class SadeemApplication {
     }
 
     // ========================================
-    // استيراد Excel
-    // ========================================
-    async importExcel(filePath) {
-        try {
-            const XLSX = require('xlsx');
-            const workbook = XLSX.readFile(filePath);
-            const sheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[sheetName];
-            const data = XLSX.utils.sheet_to_json(worksheet);
-            return data;
-        } catch (error) {
-            console.error('خطأ في استيراد Excel:', error);
-            throw error;
-        }
-    }
-
-    // ========================================
     // تهيئة التطبيق
     // ========================================
     async initialize() {
@@ -419,9 +286,7 @@ class SadeemApplication {
                 return;
             }
 
-            console.log('🔐 تهيئة نظام التشفير المتقدم...');
-            this.encryptionService = new AdvancedEncryptionService();
-            await this.encryptionService.initialize();
+            await this.initializeEncryption();
 
             console.log('🔐 تهيئة الخدمات الأمنية...');
             this.securityService = new SecurityService();
@@ -433,6 +298,7 @@ class SadeemApplication {
 
             this.licenseStatus = await this.licenseService.validateLicense();
             this.readOnlyMode = !this.licenseStatus?.valid;
+            this.isLicenseValid = this.licenseStatus?.valid || false;
 
             console.log('💾 تهيئة قاعدة البيانات...');
             this.databaseService = new DatabaseService(this.securityService);
@@ -453,104 +319,6 @@ class SadeemApplication {
             console.error('❌ فشل تهيئة التطبيق:', error);
             dialog.showErrorBox('خطأ في التشغيل', 'حدث خطأ أثناء تهيئة النظام. يرجى إعادة المحاولة.');
             app.quit();
-        }
-    }
-
-    // ========================================
-    // إعدادات أحداث التطبيق
-    // ========================================
-    setupAppEvents() {
-        app.on('window-all-closed', () => {
-            if (process.platform !== 'darwin') {
-                app.quit();
-            }
-        });
-
-        app.on('activate', async () => {
-            if (BrowserWindow.getAllWindows().length === 0) {
-                await this.createMainWindow();
-            }
-        });
-
-        app.on('before-quit', async (event) => {
-            if (this.isQuitting) return;
-            this.isQuitting = true;
-            
-            if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-                event.preventDefault();
-                await this.cleanupApplication();
-                app.quit();
-            }
-        });
-
-        if (process.platform === 'win32') {
-            systemPreferences.on('accent-color-changed', this.handleSystemThemeChange.bind(this));
-        }
-    }
-
-    // ========================================
-    // إعدادات الاختصارات العالمية
-    // ========================================
-    setupGlobalShortcuts() {
-        globalShortcut.register('CommandOrControl+Shift+D', () => {
-            this.navigateTo('dashboard');
-        });
-
-        globalShortcut.register('CommandOrControl+Shift+W', () => {
-            this.navigateTo('workers');
-        });
-
-        globalShortcut.register('CommandOrControl+Shift+P', () => {
-            this.navigateTo('payroll');
-        });
-
-        globalShortcut.register('CommandOrControl+Shift+E', () => {
-            this.navigateTo('expenses');
-        });
-
-        globalShortcut.register('CommandOrControl+Shift+A', () => {
-            this.navigateTo('workspace');
-        });
-
-        globalShortcut.register('CommandOrControl+Shift+T', () => {
-            this.navigateTo('tutorial');
-        });
-
-        globalShortcut.register('CommandOrControl+Shift+S', () => {
-            this.navigateTo('settings');
-        });
-
-        globalShortcut.register('F5', () => {
-            if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-                this.mainWindow.reload();
-            }
-        });
-
-        this.shortcuts = [
-            'CommandOrControl+Shift+D', 'CommandOrControl+Shift+W',
-            'CommandOrControl+Shift+P', 'CommandOrControl+Shift+E',
-            'CommandOrControl+Shift+A', 'CommandOrControl+Shift+T',
-            'CommandOrControl+Shift+S', 'F5'
-        ];
-    }
-
-    // ========================================
-    // نظام التنقل
-    // ========================================
-    navigateTo(page) {
-        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-            this.navigationHistory.push(this.currentPage);
-            this.currentPage = page;
-            const pagePath = path.join(__dirname, `../renderer/pages/${page}/${page}.html`);
-            this.mainWindow.loadFile(pagePath);
-        }
-    }
-
-    goBack() {
-        if (this.navigationHistory.length > 0) {
-            const previousPage = this.navigationHistory.pop();
-            this.currentPage = previousPage;
-            this.navigateTo(previousPage);
         }
     }
 
@@ -618,6 +386,7 @@ class SadeemApplication {
             if (result.success) {
                 this.licenseStatus = await this.licenseService.validateLicense();
                 this.readOnlyMode = !this.licenseStatus?.valid;
+                this.isLicenseValid = this.licenseStatus?.valid || false;
                 if (this.mainWindow && !this.mainWindow.isDestroyed()) {
                     this.mainWindow.webContents.send('app:license-status', this.licenseStatus);
                     this.mainWindow.webContents.send('app:readonly-mode', this.readOnlyMode);
@@ -635,22 +404,14 @@ class SadeemApplication {
         });
 
         // ========================================
-        // نظام التشفير المتقدم
+        // نظام التشفير - توليد الأكواد
         // ========================================
-        ipcMain.handle('encrypt:advanced', async (event, data) => {
-            return this.encryptionService.encryptData(data);
+        ipcMain.handle('license:generateKey', async (event, data) => {
+            return await this.generateLicenseKey(data);
         });
 
-        ipcMain.handle('decrypt:advanced', async (event, encryptedData) => {
-            return this.encryptionService.decryptData(encryptedData);
-        });
-
-        ipcMain.handle('license:generate', async (event, data) => {
-            return this.encryptionService.generateLicenseKey(data);
-        });
-
-        ipcMain.handle('license:verify', async (event, licenseKey, deviceHWID) => {
-            return this.encryptionService.verifyLicenseKey(licenseKey, deviceHWID);
+        ipcMain.handle('license:verifyKey', async (event, licenseKey, deviceHWID) => {
+            return await this.verifyLicenseKey(licenseKey, deviceHWID);
         });
 
         ipcMain.handle('license:getRemainingDays', async (event, licenseKey) => {
@@ -661,27 +422,8 @@ class SadeemApplication {
             return this.encryptionService.isLicenseExpired(licenseKey);
         });
 
-        // ========================================
-        // عمليات التشفير المتقدمة
-        // ========================================
-        ipcMain.handle('encrypt:license', async (event, data, hwid) => {
-            return this.encryptLicenseData(data, hwid);
-        });
-
-        ipcMain.handle('decrypt:license', async (event, encryptedData, hwid) => {
-            return this.decryptLicenseData(encryptedData, hwid);
-        });
-
-        ipcMain.handle('encrypt:generateSignature', async (event, data, hwid) => {
-            return this.generateSignature(data, hwid);
-        });
-
-        ipcMain.handle('encrypt:verifySignature', async (event, data, signature, hwid) => {
-            return this.verifySignature(data, signature, hwid);
-        });
-
-        ipcMain.handle('encrypt:deriveKey', async (event, hwid, salt, iterations) => {
-            return this.deriveKeyFromHWID(hwid, salt, iterations || 100000);
+        ipcMain.handle('license:getHWID', async () => {
+            return await this.securityService.getHWID();
         });
 
         // ========================================
@@ -715,8 +457,15 @@ class SadeemApplication {
         });
 
         // ========================================
-        // استيراد وتصدير البيانات
+        // استيراد وتصدير
         // ========================================
+        ipcMain.handle('import:word', async (event, filePath) => {
+            if (this.readOnlyMode) {
+                throw new Error('وضع القراءة فقط - لا يمكن استيراد البيانات');
+            }
+            return await this.importWord(filePath);
+        });
+
         ipcMain.handle('import:excel', async (event, filePath) => {
             if (this.readOnlyMode) {
                 throw new Error('وضع القراءة فقط - لا يمكن استيراد البيانات');
@@ -733,7 +482,7 @@ class SadeemApplication {
         });
 
         // ========================================
-        // عمليات النسخ الاحتياطي
+        // النسخ الاحتياطي
         // ========================================
         ipcMain.handle('backup:create', async () => {
             return await this.databaseService.createBackup();
@@ -758,7 +507,8 @@ class SadeemApplication {
                 electronVersion: process.versions.electron,
                 isDev: process.env.NODE_ENV === 'development',
                 readOnly: this.readOnlyMode,
-                currentPage: this.currentPage
+                currentPage: this.currentPage,
+                isLicenseValid: this.isLicenseValid
             };
         });
 
@@ -814,7 +564,7 @@ class SadeemApplication {
     }
 
     // ========================================
-    // إنشاء نافذة البداية (Splash Screen)
+    // إنشاء نافذة البداية
     // ========================================
     async createSplashWindow() {
         this.splashScreen = new BrowserWindow({
@@ -973,6 +723,7 @@ class SadeemApplication {
                     { label: 'استعادة نسخة', click: () => this.restoreBackup() },
                     { type: 'separator' },
                     { label: 'استيراد Excel', click: () => this.importExcelFile() },
+                    { label: 'استيراد Word', click: () => this.importWordFile() },
                     { label: 'تصدير البيانات', enabled: !isReadOnly }
                 ]
             },
@@ -1041,6 +792,42 @@ class SadeemApplication {
         }
     }
 
+    async importWordFile() {
+        if (this.readOnlyMode) {
+            dialog.showMessageBox(this.mainWindow, {
+                title: 'تنبيه',
+                message: 'وضع القراءة فقط - لا يمكن استيراد البيانات',
+                type: 'warning'
+            });
+            return;
+        }
+
+        const result = await dialog.showOpenDialog(this.mainWindow, {
+            title: 'استيراد ملف Word',
+            filters: [
+                { name: 'Word Files', extensions: ['docx', 'doc'] }
+            ],
+            properties: ['openFile']
+        });
+
+        if (!result.canceled && result.filePaths.length > 0) {
+            try {
+                const data = await this.importWord(result.filePaths[0]);
+                dialog.showMessageBox(this.mainWindow, {
+                    title: 'نجاح',
+                    message: `تم استيراد البيانات بنجاح`,
+                    type: 'info'
+                });
+            } catch (error) {
+                dialog.showMessageBox(this.mainWindow, {
+                    title: 'خطأ',
+                    message: 'فشل استيراد الملف: ' + error.message,
+                    type: 'error'
+                });
+            }
+        }
+    }
+
     showShortcuts() {
         const shortcuts = [
             'Ctrl+Shift+D → لوحة التحكم',
@@ -1050,6 +837,7 @@ class SadeemApplication {
             'Ctrl+Shift+A → منطقة العمل',
             'Ctrl+Shift+T → دليل الاستخدام',
             'Ctrl+Shift+S → الإعدادات',
+            'Ctrl+Shift+G → مولد الأكواد',
             'F5 → تحديث الصفحة'
         ];
         dialog.showMessageBox(this.mainWindow, {
@@ -1085,6 +873,76 @@ class SadeemApplication {
         if (focusedWindow && !focusedWindow.isDestroyed()) {
             focusedWindow.close();
         }
+    }
+
+    // ========================================
+    // نظام التنقل
+    // ========================================
+    navigateTo(page) {
+        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+            this.navigationHistory.push(this.currentPage);
+            this.currentPage = page;
+            const pagePath = path.join(__dirname, `../renderer/pages/${page}/${page}.html`);
+            this.mainWindow.loadFile(pagePath);
+        }
+    }
+
+    goBack() {
+        if (this.navigationHistory.length > 0) {
+            const previousPage = this.navigationHistory.pop();
+            this.currentPage = previousPage;
+            this.navigateTo(previousPage);
+        }
+    }
+
+    // ========================================
+    // الاختصارات العالمية
+    // ========================================
+    setupGlobalShortcuts() {
+        globalShortcut.register('CommandOrControl+Shift+D', () => {
+            this.navigateTo('dashboard');
+        });
+
+        globalShortcut.register('CommandOrControl+Shift+W', () => {
+            this.navigateTo('workers');
+        });
+
+        globalShortcut.register('CommandOrControl+Shift+P', () => {
+            this.navigateTo('payroll');
+        });
+
+        globalShortcut.register('CommandOrControl+Shift+E', () => {
+            this.navigateTo('expenses');
+        });
+
+        globalShortcut.register('CommandOrControl+Shift+A', () => {
+            this.navigateTo('workspace');
+        });
+
+        globalShortcut.register('CommandOrControl+Shift+T', () => {
+            this.navigateTo('tutorial');
+        });
+
+        globalShortcut.register('CommandOrControl+Shift+S', () => {
+            this.navigateTo('settings');
+        });
+
+        globalShortcut.register('CommandOrControl+Shift+G', () => {
+            this.navigateTo('generator');
+        });
+
+        globalShortcut.register('F5', () => {
+            if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+                this.mainWindow.reload();
+            }
+        });
+
+        this.shortcuts = [
+            'CommandOrControl+Shift+D', 'CommandOrControl+Shift+W',
+            'CommandOrControl+Shift+P', 'CommandOrControl+Shift+E',
+            'CommandOrControl+Shift+A', 'CommandOrControl+Shift+T',
+            'CommandOrControl+Shift+S', 'CommandOrControl+Shift+G', 'F5'
+        ];
     }
 
     // ========================================
