@@ -12,20 +12,15 @@ const validChannels = [
     'license:activate',
     'license:getStatus',
     'license:getTrialInfo',
-    'encrypt:advanced',
-    'decrypt:advanced',
-    'license:generate',
-    'license:verify',
+    'license:generateKey',
+    'license:verifyKey',
     'license:getRemainingDays',
     'license:isExpired',
-    'encrypt:license',
-    'decrypt:license',
-    'encrypt:generateSignature',
-    'encrypt:verifySignature',
-    'encrypt:deriveKey',
+    'license:getHWID',
     'db:query',
     'db:run',
     'db:transaction',
+    'import:word',
     'import:excel',
     'export:pdf',
     'export:excel',
@@ -80,60 +75,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getTrialInfo: () => ipcRenderer.invoke('license:getTrialInfo'),
     
     // ========================================
-    // نظام التشفير المتقدم
+    // توليد والتحقق من الأكواد
     // ========================================
-    encryptAdvanced: (data) => ipcRenderer.invoke('encrypt:advanced', data),
-    decryptAdvanced: (encryptedData) => ipcRenderer.invoke('decrypt:advanced', encryptedData),
-    generateLicense: (data) => ipcRenderer.invoke('license:generate', data),
-    verifyLicense: (licenseKey, deviceHWID) => ipcRenderer.invoke('license:verify', licenseKey, deviceHWID),
+    generateLicenseKey: (data) => ipcRenderer.invoke('license:generateKey', data),
+    verifyLicenseKey: (licenseKey, deviceHWID) => ipcRenderer.invoke('license:verifyKey', licenseKey, deviceHWID),
     getLicenseRemainingDays: (licenseKey) => ipcRenderer.invoke('license:getRemainingDays', licenseKey),
     isLicenseExpired: (licenseKey) => ipcRenderer.invoke('license:isExpired', licenseKey),
-    
-    // ========================================
-    // عمليات التشفير المتقدمة
-    // ========================================
-    encryptLicense: (data, hwid) => {
-        if (!data || typeof data !== 'object') {
-            throw new Error('البيانات المطلوب تشفيرها غير صالحة');
-        }
-        if (!hwid || typeof hwid !== 'string') {
-            throw new Error('HWID مطلوب للتشفير');
-        }
-        return ipcRenderer.invoke('encrypt:license', data, hwid);
-    },
-    decryptLicense: (encryptedData, hwid) => {
-        if (!encryptedData || typeof encryptedData !== 'string') {
-            throw new Error('البيانات المشفرة غير صالحة');
-        }
-        if (!hwid || typeof hwid !== 'string') {
-            throw new Error('HWID مطلوب لفك التشفير');
-        }
-        return ipcRenderer.invoke('decrypt:license', encryptedData, hwid);
-    },
-    generateSignature: (data, hwid) => {
-        if (!data || typeof data !== 'string') {
-            throw new Error('البيانات المطلوب توقيعها غير صالحة');
-        }
-        return ipcRenderer.invoke('encrypt:generateSignature', data, hwid);
-    },
-    verifySignature: (data, signature, hwid) => {
-        if (!data || typeof data !== 'string') {
-            throw new Error('البيانات غير صالحة للتحقق');
-        }
-        if (!signature || typeof signature !== 'string') {
-            throw new Error('التوقيع غير صالح');
-        }
-        return ipcRenderer.invoke('encrypt:verifySignature', data, signature, hwid);
-    },
-    deriveKey: (hwid, salt, iterations = 100000) => {
-        if (!hwid || typeof hwid !== 'string') {
-            throw new Error('HWID مطلوب لاشتقاق المفتاح');
-        }
-        if (!salt || typeof salt !== 'string') {
-            throw new Error('الملح مطلوب لاشتقاق المفتاح');
-        }
-        return ipcRenderer.invoke('encrypt:deriveKey', hwid, salt, iterations);
-    },
+    getHWID: () => ipcRenderer.invoke('license:getHWID'),
     
     // ========================================
     // عمليات قاعدة البيانات
@@ -178,6 +126,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // ========================================
     // استيراد وتصدير
     // ========================================
+    importWord: (filePath) => {
+        if (!filePath || typeof filePath !== 'string') {
+            throw new Error('مسار الملف مطلوب');
+        }
+        return ipcRenderer.invoke('import:word', filePath);
+    },
     importExcel: (filePath) => {
         if (!filePath || typeof filePath !== 'string') {
             throw new Error('مسار الملف مطلوب');
